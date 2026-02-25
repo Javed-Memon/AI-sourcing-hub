@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
 /* ═══════════════════════════════════════════════════
-   TALENTOS · AI SOURCING HUB  v4.0
+   TALENTOS · AI SOURCING HUB  v5.0
    Light-default · LLM Prompt search · Smart Shortlist
    Bulk unlock · Grid/List results · Job Pipeline
+   + Corporate Dashboard · Outreach Workflows
+   + Candidate Notifications & Opt-out
 ═══════════════════════════════════════════════════ */
 
 const GFONTS = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap";
@@ -88,6 +90,49 @@ const TX_HISTORY = [
   {id:8,type:"unlock",   label:"Profile Unlocked — DevOps Engineer",          cost:1,  date:"Last Friday", icon:"🔓"},
 ];
 
+/* ── OUTREACH DATA ── */
+const OUTREACH_TEMPLATES = [
+  {id:"intro",name:"Introduction",subject:"Exciting opportunity at {{company}}",body:"Hi {{name}},\n\nI came across your profile and was impressed by your experience in {{skills}}. We have an exciting {{role}} opportunity at {{company}} in {{location}} that I believe aligns well with your background.\n\nWould you be open to a brief conversation this week?\n\nBest regards,\nSarah Kessler\nHR Manager, Novartis AG"},
+  {id:"role",name:"Role Pitch",subject:"{{role}} — {{company}} · {{location}}",body:"Hi {{name}},\n\nI'm reaching out regarding our {{role}} position based in {{location}}. Given your {{yoe}} years of experience and expertise in {{skills}}, I think you'd be a strong fit.\n\nKey highlights:\n• Competitive compensation package\n• Hybrid work model\n• Career growth in a leading organisation\n\nI'd love to share more details. Are you available for a quick call?\n\nBest,\nSarah Kessler"},
+  {id:"followup",name:"Follow-up",subject:"Following up — {{role}} at {{company}}",body:"Hi {{name}},\n\nI wanted to follow up on my previous message about the {{role}} opportunity at {{company}}. I understand you may be busy, but I'd still love to connect if this interests you.\n\nNo pressure at all — just let me know either way.\n\nWarm regards,\nSarah Kessler"},
+  {id:"schedule",name:"Schedule Meeting",subject:"Let's connect — {{role}} discussion",body:"Hi {{name}},\n\nThank you for your interest in the {{role}} position. I'd love to schedule a call to discuss the role in more detail.\n\nWould any of these times work for you?\n• [Suggested time 1]\n• [Suggested time 2]\n• [Suggested time 3]\n\nLooking forward to speaking with you.\n\nBest,\nSarah Kessler"},
+];
+
+const OUTREACH_STATUSES = ["Not Contacted","Contacted","Responded","Meeting Booked"];
+
+const OUTREACH_RECORDS = [
+  {id:1,candidateId:1,status:"Meeting Booked",lastAction:"Meeting confirmed for Thu 10:00",template:"schedule",sentDate:"2026-02-24",followUpDate:null,messages:[
+    {dir:"out",date:"2026-02-22 09:15",subject:"Exciting opportunity at Novartis AG",preview:"Hi Lena, I came across your profile…"},
+    {dir:"in",date:"2026-02-22 14:30",subject:"Re: Exciting opportunity at Novartis AG",preview:"Hi Sarah, thank you for reaching out. I'd be happy to learn more…"},
+    {dir:"out",date:"2026-02-23 08:45",subject:"Let's connect — Senior DevOps Engineer discussion",preview:"Hi Lena, thank you for your interest…"},
+    {dir:"in",date:"2026-02-23 11:20",subject:"Re: Let's connect",preview:"Thursday at 10:00 works perfectly for me…"},
+  ]},
+  {id:2,candidateId:2,status:"Responded",lastAction:"Candidate expressed interest",template:"intro",sentDate:"2026-02-23",followUpDate:"2026-02-26",messages:[
+    {dir:"out",date:"2026-02-23 10:00",subject:"Platform Engineer opportunity at Novartis AG",preview:"Hi Marco, I came across your profile…"},
+    {dir:"in",date:"2026-02-24 09:15",subject:"Re: Platform Engineer opportunity",preview:"Hi Sarah, sounds interesting. Could you share the JD?…"},
+  ]},
+  {id:3,candidateId:9,status:"Contacted",lastAction:"Initial outreach sent",template:"role",sentDate:"2026-02-24",followUpDate:"2026-02-27",messages:[
+    {dir:"out",date:"2026-02-24 14:00",subject:"Senior DevOps Engineer — Novartis AG · Zürich",preview:"Hi Petra, I'm reaching out regarding our…"},
+  ]},
+  {id:4,candidateId:3,status:"Not Contacted",lastAction:"Added to outreach queue",template:null,sentDate:null,followUpDate:null,messages:[]},
+  {id:5,candidateId:10,status:"Contacted",lastAction:"Follow-up sent",template:"followup",sentDate:"2026-02-21",followUpDate:"2026-02-28",messages:[
+    {dir:"out",date:"2026-02-21 11:30",subject:"Cloud Infrastructure role at Novartis AG",preview:"Hi Thomas, I came across your profile…"},
+    {dir:"out",date:"2026-02-24 09:00",subject:"Following up — Cloud Infrastructure Engineer",preview:"Hi Thomas, I wanted to follow up…"},
+  ]},
+];
+
+/* ── CANDIDATE NOTIFICATION DATA ── */
+const NOTIFICATION_LOG = [
+  {id:1,candidateId:1,type:"unlock",date:"2026-02-24 11:42",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"lena.muller@email.ch"},
+  {id:2,candidateId:2,type:"unlock",date:"2026-02-24 09:30",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"m.bernasconi@mail.ch"},
+  {id:3,candidateId:9,type:"unlock",date:"2026-02-23 16:20",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"p.novak@gmail.com"},
+  {id:4,candidateId:3,type:"unlock",date:"2026-02-23 14:10",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"s.dubois@proton.me"},
+  {id:5,candidateId:10,type:"unlock",date:"2026-02-21 11:28",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"t.brunner@outlook.com"},
+  {id:6,candidateId:5,type:"smart_shortlist",date:"2026-02-20 15:00",status:"Delivered",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"n.volkov@fastmail.com"},
+  {id:7,candidateId:4,type:"smart_shortlist",date:"2026-02-20 15:00",status:"Bounced",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:false,email:"a.keller@old-email.com"},
+  {id:8,candidateId:7,type:"unlock",date:"2026-02-19 10:45",status:"Opted Out",org:"Novartis AG",recruiter:"Sarah Kessler",optedOut:true,email:"e.rossi@outlook.com"},
+];
+
 /* ── CSS ── */
 function makeCSS(T) {
   return `
@@ -159,11 +204,14 @@ function Toast({msg,type,T,onClose}) {
 /* ── SIDEBAR ── */
 function Sidebar({page,setPage,credits,isDark,toggleTheme,T}) {
   const nav=[
+    {id:"dashboard", ico:"◉",label:"Dashboard"},
     {id:"sourcing",  ico:"◎",label:"AI Sourcing Hub"},
     {id:"pipeline",  ico:"⟳",label:"Job Pipelines"},
     {id:"pool",      ico:"❑",label:"Candidate Pool"},
+    {id:"outreach",  ico:"✉",label:"Outreach"},
     {id:"interviews",ico:"◷",label:"AI Interviews"},
     {id:"jobs",      ico:"≡",label:"Jobs"},
+    {id:"notifications",ico:"🔔",label:"Notifications"},
     {id:"credits",   ico:"⬡",label:"Credits"},
     {id:"settings",  ico:"⚙",label:"Settings"},
   ];
@@ -191,14 +239,14 @@ function Sidebar({page,setPage,credits,isDark,toggleTheme,T}) {
         <span style={{fontSize:14}}>{isDark?"☀️":"🌙"}</span>
         <span style={{fontSize:12,fontWeight:600,color:T.text2}}>{isDark?"Light Mode":"Dark Mode"}</span>
       </button>
-      <div style={{fontSize:10,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:5}}><span>🛡</span><span>GDPR · Swiss nDSG · v4.0</span></div>
+      <div style={{fontSize:10,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:5}}><span>🛡</span><span>GDPR · Swiss nDSG · v5.0</span></div>
     </div>
   </div>;
 }
 
 /* ── TOPBAR ── */
 function Topbar({page,credits,unlocked,pooled,piped,T}) {
-  const titles={sourcing:"AI Sourcing Hub",pipeline:"Job Pipelines",pool:"Candidate Pool",interviews:"AI Interviews",credits:"Credits Dashboard",jobs:"Jobs",settings:"Settings"};
+  const titles={dashboard:"Dashboard",sourcing:"AI Sourcing Hub",pipeline:"Job Pipelines",pool:"Candidate Pool",outreach:"Outreach Hub",interviews:"AI Interviews",credits:"Credits Dashboard",jobs:"Jobs",notifications:"Candidate Notifications",settings:"Settings"};
   return <div style={{height:54,background:T.bg2,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",padding:"0 28px",gap:20,flexShrink:0}}>
     <span style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:17,color:T.text,flex:1,letterSpacing:"-.01em"}}>{titles[page]||"—"}</span>
     <div style={{display:"flex",gap:18,alignItems:"center"}}>
@@ -650,7 +698,7 @@ function ResultsPage({profiles,onProfile,onNewSearch,onBulkUnlock,T}) {
 }
 
 /* ── PROFILE MODAL ── */
-function ProfileModal({profile,credits,onClose,onUnlock,onPool,onPipeline,onInterview,T,_startUnlocked}) {
+function ProfileModal({profile,credits,onClose,onUnlock,onPool,onPipeline,onInterview,onOutreach,T,_startUnlocked}) {
   const [tab,setTab]=useState("overview");
   const [unlocked,setUnlocked]=useState(_startUnlocked||false);
   const [inPool,setInPool]=useState(false);
@@ -765,9 +813,10 @@ function ProfileModal({profile,credits,onClose,onUnlock,onPool,onPipeline,onInte
           <button className="bs" onClick={()=>setInPipe(p=>!p)} style={{flex:1,padding:"9px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,borderColor:inPipe?T.tealBrd:undefined,color:inPipe?T.teal:undefined,background:inPipe?T.tealDim:undefined}}>{inPipe?"✓ In Pipeline":"⟳ Pipeline"}</button>
           <button className="bp" onClick={()=>setShowUnlock(true)} style={{padding:"9px 24px",fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,borderRadius:9,flexShrink:0}}>🔓 Unlock — 1 credit</button>
         </div>:<div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9,marginBottom:9}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:9,marginBottom:9}}>
             <button className="bs" onClick={()=>{setInPool(true);onPool(profile);}} style={{padding:"9px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,borderColor:inPool?T.tealBrd:undefined,color:inPool?T.teal:undefined,background:inPool?T.tealDim:undefined}}>{inPool?"✓ In Pool":"❑ Add to Pool"}</button>
             <button className="bs" onClick={()=>{setInPipe(true);onPipeline(profile);}} style={{padding:"9px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,borderColor:inPipe?T.tealBrd:undefined,color:inPipe?T.teal:undefined,background:inPipe?T.tealDim:undefined}}>{inPipe?"✓ In Pipeline":"⟳ Add to Pipeline"}</button>
+            <button onClick={()=>{if(onOutreach)onOutreach(profile);}} style={{padding:"9px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,borderRadius:9,border:`1px solid ${T.blue}30`,background:`${T.blue}0C`,color:T.blue,cursor:"pointer",transition:"all .15s"}}>✉ Outreach</button>
             <button onClick={()=>setShowInt(true)} disabled={intDone} style={{padding:"9px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,borderRadius:9,border:`1px solid ${T.violet}30`,background:intDone?T.violetDim:`${T.violet}0C`,color:T.violet,cursor:intDone?"default":"pointer",transition:"all .15s"}}>{intDone?"✓ Scheduled":"◷ AI Interview – 3 cr"}</button>
           </div>
           <div style={{display:"flex",gap:9}}>
@@ -1075,6 +1124,592 @@ function CreditsDash({credits,unlocked,interviews,T}) {
   </div>;
 }
 
+/* ── CORPORATE HR DASHBOARD ── */
+function DashboardPage({credits,unlocked,pooled,piped,interviews,onNavigate,T}) {
+  const totalOutreach=OUTREACH_RECORDS.length;
+  const responded=OUTREACH_RECORDS.filter(r=>r.status==="Responded"||r.status==="Meeting Booked").length;
+  const meetings=OUTREACH_RECORDS.filter(r=>r.status==="Meeting Booked").length;
+  const notifCount=NOTIFICATION_LOG.length;
+  const optOuts=NOTIFICATION_LOG.filter(n=>n.optedOut).length;
+  const bounces=NOTIFICATION_LOG.filter(n=>n.status==="Bounced").length;
+
+  return <div style={{flex:1,overflowY:"auto",padding:"28px 36px",background:T.bg}}>
+    <div style={{maxWidth:960,margin:"0 auto"}}>
+      {/* Welcome banner */}
+      <div style={{background:`linear-gradient(135deg,${T.tealDim},${T.blueDim})`,border:`1px solid ${T.tealBrd}`,borderRadius:18,padding:"28px 32px",marginBottom:22}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+          <div>
+            <h1 className="htitle" style={{fontSize:24,marginBottom:6}}>Welcome back, Sarah</h1>
+            <p style={{fontSize:14,color:T.text2,lineHeight:1.6,fontFamily:"'Plus Jakarta Sans',sans-serif",maxWidth:480}}>Here's your recruitment sourcing overview for Novartis AG. Track your pipeline, outreach, and compliance status at a glance.</p>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="bp" onClick={()=>onNavigate("sourcing")} style={{padding:"10px 20px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,borderRadius:9,display:"flex",alignItems:"center",gap:7}}>◎ Source Candidates</button>
+            <button className="bs" onClick={()=>onNavigate("credits")} style={{padding:"10px 16px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,display:"flex",alignItems:"center",gap:7}}>⬡ Buy Credits</button>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI cards - row 1 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:11,marginBottom:18}}>
+        {[
+          ["⬡","Credits",credits,T.teal,"Available"],
+          ["🔓","Unlocked",unlocked,T.blue,`${unlocked} credits used`],
+          ["❑","In Pool",pooled,T.green,"Candidates"],
+          ["⟳","Pipeline",piped,T.violet,"Active"],
+          ["🎙","Interviews",interviews,T.amber,`${interviews*3} credits`],
+        ].map(([ico,l,v,c,s])=><div key={l} onClick={()=>onNavigate(l==="Credits"?"credits":l==="In Pool"?"pool":l==="Pipeline"?"pipeline":l==="Interviews"?"interviews":"sourcing")} style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 16px",boxShadow:`0 1px 4px ${T.shadow}`,cursor:"pointer",transition:"all .15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=`${c}44`;e.currentTarget.style.transform="translateY(-2px)";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="none";}}>
+          <div style={{fontSize:17,marginBottom:8}}>{ico}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:24,color:c,marginBottom:2}}>{v}</div>
+          <div style={{fontSize:13,color:T.text,fontWeight:600,marginBottom:2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{l}</div>
+          <div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s}</div>
+        </div>)}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:18}}>
+        {/* Outreach summary */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:T.text}}>Outreach Overview</div>
+            <button className="bt" onClick={()=>onNavigate("outreach")} style={{padding:"5px 12px",fontSize:11,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600}}>View All →</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+            {[["Contacted",totalOutreach,T.blue],["Responded",responded,T.green],["Meetings",meetings,T.teal]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:"12px",background:`${c}0C`,border:`1px solid ${c}22`,borderRadius:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:22,color:c}}>{v}</div>
+              <div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",marginTop:2}}>{l}</div>
+            </div>)}
+          </div>
+          {/* Response rate bar */}
+          <div style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:5}}>
+              <span style={{color:T.text2}}>Response Rate</span>
+              <span style={{color:T.green,fontWeight:700}}>{totalOutreach?Math.round(responded/totalOutreach*100):0}%</span>
+            </div>
+            <div style={{height:7,background:T.surface2,borderRadius:4,overflow:"hidden"}}>
+              <div style={{width:`${totalOutreach?Math.round(responded/totalOutreach*100):0}%`,height:"100%",background:`linear-gradient(90deg,${T.teal},${T.green})`,borderRadius:4}}/>
+            </div>
+          </div>
+          {/* Funnel stages */}
+          {OUTREACH_STATUSES.map((s,i)=>{
+            const count=OUTREACH_RECORDS.filter(r=>r.status===s).length;
+            return <div key={s} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderTop:i>0?`1px solid ${T.border}`:"none"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:[T.text3,T.blue,T.green,T.teal][i],flexShrink:0}}/>
+              <span style={{fontSize:12,color:T.text2,flex:1,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s}</span>
+              <span style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:T.text}}>{count}</span>
+            </div>;
+          })}
+        </div>
+
+        {/* Compliance & notifications */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:T.text}}>Compliance Status</div>
+            <button className="bt" onClick={()=>onNavigate("notifications")} style={{padding:"5px 12px",fontSize:11,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600}}>View Log →</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+            {[["Notifications",notifCount,T.blue],["Opt-outs",optOuts,T.amber],["Bounced",bounces,T.red]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:"12px",background:`${c}0C`,border:`1px solid ${c}22`,borderRadius:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:22,color:c}}>{v}</div>
+              <div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",marginTop:2}}>{l}</div>
+            </div>)}
+          </div>
+          {/* Compliance checklist */}
+          <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:10,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>GDPR / nDSG Compliance Checklist</div>
+          {[
+            ["GDPR Art. 14 notifications active",true],
+            ["Opt-out mechanism live & tested",true],
+            ["Data retention policy enforced (12 mo)",true],
+            ["DPA signed with data providers",true],
+            ["Audit log operational (3-year retention)",true],
+            [optOuts>0?`${optOuts} opt-out(s) processed & propagated`:"No opt-outs pending",optOuts>0],
+            [bounces>0?`${bounces} bounced notification(s) — review required`:null,false],
+          ].filter(([text])=>text).map(([text,ok],i)=><div key={i} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"6px 0"}}>
+            <span style={{fontSize:12,flexShrink:0,marginTop:1}}>{ok?"✅":"⚠️"}</span>
+            <span style={{fontSize:12,color:ok?T.text2:T.amber,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.5}}>{text}</span>
+          </div>)}
+        </div>
+      </div>
+
+      {/* Recent Activity & Quick Actions */}
+      <div style={{display:"grid",gridTemplateColumns:"1.4fr 0.6fr",gap:16}}>
+        {/* Activity feed */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:14}}>Recent Activity</div>
+          {TX_HISTORY.slice(0,6).map((tx,i)=><div key={tx.id} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 0",borderBottom:i<5?`1px solid ${T.border}`:"none"}}>
+            <div style={{width:33,height:33,borderRadius:9,background:tx.type==="topup"?T.greenDim:tx.type==="interview"?T.violetDim:tx.type==="smartlist"?T.amberDim:T.tealDim,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{tx.icon}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,color:T.text,fontWeight:500,marginBottom:1,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{tx.label}</div><div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{tx.date}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:tx.type==="topup"?T.green:T.text2}}>{tx.type==="topup"?`+${Math.abs(tx.cost)}`:`−${tx.cost}`}</div></div>
+          </div>)}
+        </div>
+
+        {/* Quick actions */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:14}}>Quick Actions</div>
+          {[
+            ["◎","Source Candidates","Search passive candidates","sourcing",T.teal],
+            ["✉","Send Outreach","Contact unlocked profiles","outreach",T.blue],
+            ["⟳","View Pipelines","Track candidate progress","pipeline",T.violet],
+            ["🔔","Notification Log","GDPR compliance audit","notifications",T.amber],
+            ["⬡","Buy Credits","Top up credit balance","credits",T.green],
+          ].map(([ico,l,desc,target,c])=><button key={l} onClick={()=>onNavigate(target)} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"11px 13px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bg3,cursor:"pointer",marginBottom:7,transition:"all .15s",fontFamily:"'Plus Jakarta Sans',sans-serif",textAlign:"left"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=`${c}44`;e.currentTarget.style.background=`${c}0C`;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bg3;}}>
+            <span style={{fontSize:17,flexShrink:0}}>{ico}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.text}}>{l}</div>
+              <div style={{fontSize:11,color:T.text3}}>{desc}</div>
+            </div>
+            <span style={{fontSize:12,color:T.text3}}>→</span>
+          </button>)}
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ── OUTREACH HUB PAGE ── */
+function OutreachPage({onProfile,onNavigate,addToast,T}) {
+  const [filter,setFilter]=useState("all");
+  const [selected,setSelected]=useState(null);
+  const [showCompose,setShowCompose]=useState(false);
+  const [composeFor,setComposeFor]=useState(null);
+  const [chosenTemplate,setChosenTemplate]=useState("intro");
+  const [emailBody,setEmailBody]=useState("");
+  const [emailSubject,setEmailSubject]=useState("");
+  const [sending,setSending]=useState(false);
+  const [sendDone,setSendDone]=useState(false);
+  const [records,setRecords]=useState(OUTREACH_RECORDS);
+
+  const filtered=filter==="all"?records:records.filter(r=>r.status===filter);
+  const statusColors={"Not Contacted":T.text3,"Contacted":T.blue,"Responded":T.green,"Meeting Booked":T.teal};
+
+  function openCompose(rec){
+    const cand=PROFILES.find(p=>p.id===rec.candidateId);
+    setComposeFor({rec,cand});
+    const tpl=OUTREACH_TEMPLATES.find(t=>t.id==="intro");
+    setChosenTemplate("intro");
+    if(cand&&tpl){
+      setEmailSubject(tpl.subject.replace(/\{\{company\}\}/g,"Novartis AG").replace(/\{\{role\}\}/g,cand.title).replace(/\{\{name\}\}/g,cand.name));
+      setEmailBody(tpl.body.replace(/\{\{name\}\}/g,cand.name).replace(/\{\{company\}\}/g,"Novartis AG").replace(/\{\{role\}\}/g,cand.title).replace(/\{\{skills\}\}/g,cand.skills.slice(0,3).join(", ")).replace(/\{\{location\}\}/g,cand.loc).replace(/\{\{yoe\}\}/g,String(cand.yoe)));
+    }
+    setShowCompose(true);setSendDone(false);
+  }
+
+  function applyTemplate(tplId){
+    const tpl=OUTREACH_TEMPLATES.find(t=>t.id===tplId);
+    const cand=composeFor?.cand;
+    if(!tpl||!cand)return;
+    setChosenTemplate(tplId);
+    setEmailSubject(tpl.subject.replace(/\{\{company\}\}/g,"Novartis AG").replace(/\{\{role\}\}/g,cand.title).replace(/\{\{name\}\}/g,cand.name));
+    setEmailBody(tpl.body.replace(/\{\{name\}\}/g,cand.name).replace(/\{\{company\}\}/g,"Novartis AG").replace(/\{\{role\}\}/g,cand.title).replace(/\{\{skills\}\}/g,cand.skills.slice(0,3).join(", ")).replace(/\{\{location\}\}/g,cand.loc).replace(/\{\{yoe\}\}/g,String(cand.yoe)));
+  }
+
+  function doSend(){
+    setSending(true);
+    setTimeout(()=>{
+      setSending(false);setSendDone(true);
+      if(composeFor){
+        setRecords(recs=>recs.map(r=>r.id===composeFor.rec.id?{...r,status:r.status==="Not Contacted"?"Contacted":r.status,lastAction:"Outreach sent",sentDate:new Date().toISOString().split("T")[0]}:r));
+      }
+      addToast("Outreach email sent successfully ✓","success");
+      setTimeout(()=>{setShowCompose(false);setComposeFor(null);setSendDone(false);},1200);
+    },1500);
+  }
+
+  function setFollowUp(recId,days){
+    const d=new Date();d.setDate(d.getDate()+days);
+    setRecords(recs=>recs.map(r=>r.id===recId?{...r,followUpDate:d.toISOString().split("T")[0]}:r));
+    addToast(`Follow-up reminder set for ${days} day${days>1?"s":""} ✓`,"info");
+  }
+
+  return <div style={{flex:1,display:"flex",overflow:"hidden",background:T.bg}}>
+    {/* Left panel: record list */}
+    <div style={{width:380,background:T.bg2,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
+      <div style={{padding:"16px 16px 12px",borderBottom:`1px solid ${T.border}`}}>
+        <h2 className="htitle" style={{fontSize:18,marginBottom:8}}>Outreach Hub</h2>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {["all",...OUTREACH_STATUSES].map(s=><button key={s} onClick={()=>setFilter(s)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${filter===s?T.tealBrd:T.border}`,background:filter===s?T.tealDim:T.surface,color:filter===s?T.teal:T.text3,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",transition:"all .15s"}}>{s==="all"?"All":s}</button>)}
+        </div>
+      </div>
+      {/* Outreach funnel summary */}
+      <div style={{display:"flex",gap:0,padding:"10px 16px",borderBottom:`1px solid ${T.border}`}}>
+        {OUTREACH_STATUSES.map((s,i)=>{
+          const count=records.filter(r=>r.status===s).length;
+          return <div key={s} style={{flex:1,textAlign:"center",borderRight:i<3?`1px solid ${T.border}`:"none",padding:"4px 0"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:16,color:statusColors[s]}}>{count}</div>
+            <div style={{fontSize:9,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",textTransform:"uppercase",letterSpacing:".06em"}}>{s.split(" ").map(w=>w[0]).join("")}</div>
+          </div>;
+        })}
+      </div>
+      <div style={{flex:1,overflowY:"auto"}}>
+        {filtered.map((rec,i)=>{
+          const cand=PROFILES.find(p=>p.id===rec.candidateId);
+          if(!cand)return null;
+          const isActive=selected===rec.id;
+          return <div key={rec.id} onClick={()=>setSelected(rec.id)} style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,cursor:"pointer",background:isActive?T.tealDim:"transparent",transition:"background .12s"}}
+            onMouseEnter={e=>{if(!isActive)e.currentTarget.style.background=T.cardHover;}}
+            onMouseLeave={e=>{if(!isActive)e.currentTarget.style.background="transparent";}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+              <Av idx={cand.av} size={32} name={cand.name} T={T}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cand.name}</div>
+                <div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{cand.title}</div>
+              </div>
+              <span className="tag" style={{background:`${statusColors[rec.status]}12`,color:statusColors[rec.status],border:`1px solid ${statusColors[rec.status]}28`,fontSize:10,whiteSpace:"nowrap"}}>{rec.status}</span>
+            </div>
+            <div style={{fontSize:11,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:3}}>{rec.lastAction}</div>
+            <div style={{display:"flex",gap:12,fontSize:10,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+              {rec.sentDate&&<span>Sent: {rec.sentDate}</span>}
+              {rec.followUpDate&&<span style={{color:T.amber}}>Follow-up: {rec.followUpDate}</span>}
+            </div>
+          </div>;
+        })}
+        {filtered.length===0&&<div style={{padding:30,textAlign:"center",fontSize:13,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>No records match filter</div>}
+      </div>
+    </div>
+
+    {/* Right panel: detail view */}
+    <div style={{flex:1,overflowY:"auto",padding:"22px 28px"}}>
+      {selected?(() => {
+        const rec=records.find(r=>r.id===selected);
+        const cand=rec?PROFILES.find(p=>p.id===rec.candidateId):null;
+        if(!rec||!cand)return null;
+        return <div>
+          {/* Candidate header */}
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <Av idx={cand.av} size={50} name={cand.name} T={T}/>
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:4,flexWrap:"wrap"}}>
+                  <h3 className="htitle" style={{fontSize:18}}>{cand.name}</h3>
+                  <ScB score={cand.score} T={T}/>
+                  <span className="tag" style={{background:`${statusColors[rec.status]}12`,color:statusColors[rec.status],border:`1px solid ${statusColors[rec.status]}28`,fontSize:11}}>{rec.status}</span>
+                </div>
+                <div style={{fontSize:13,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{cand.title} · {cand.employer} · {cand.loc}</div>
+                <div style={{display:"flex",gap:14,marginTop:5,fontSize:12,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+                  <span>📧 {cand.email}</span><span>📞 {cand.phone}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="bp" onClick={()=>openCompose(rec)} style={{padding:"8px 18px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700}}>✉ Compose</button>
+              <button className="bs" onClick={()=>onProfile({...cand,_forceUnlocked:true})} style={{padding:"8px 14px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>View Profile</button>
+            </div>
+          </div>
+
+          {/* Follow-up reminder */}
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:T.amberDim,border:`1px solid ${T.amber}28`,borderRadius:10,marginBottom:18}}>
+            <span style={{fontSize:15}}>⏰</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:T.amber,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Follow-up Reminder</div>
+              <div style={{fontSize:11,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{rec.followUpDate?`Scheduled for ${rec.followUpDate}`:"No follow-up set"}</div>
+            </div>
+            <div style={{display:"flex",gap:5}}>
+              {[1,3,7].map(d=><button key={d} onClick={()=>setFollowUp(rec.id,d)} className="bs" style={{padding:"4px 8px",fontSize:10,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{d}d</button>)}
+            </div>
+          </div>
+
+          {/* Message history */}
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:12}}>Message History</div>
+          {rec.messages.length===0?<div style={{padding:24,textAlign:"center",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:12}}>
+            <div style={{fontSize:24,marginBottom:8,opacity:.3}}>✉</div>
+            <div style={{fontSize:13,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}>No messages yet</div>
+            <button className="bp" onClick={()=>openCompose(rec)} style={{padding:"8px 18px",fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600}}>Send First Outreach</button>
+          </div>:
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {rec.messages.map((msg,mi)=><div key={mi} style={{background:T.bg2,border:`1px solid ${msg.dir==="out"?T.tealBrd:T.border}`,borderRadius:12,padding:"14px 16px",marginLeft:msg.dir==="in"?0:24,marginRight:msg.dir==="in"?24:0}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:msg.dir==="out"?T.teal:T.blue}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:msg.dir==="out"?T.teal:T.blue,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{msg.dir==="out"?"You":"Candidate"}</span>
+                </div>
+                <span style={{fontSize:10,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{msg.date}</span>
+              </div>
+              <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{msg.subject}</div>
+              <div style={{fontSize:12,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.5}}>{msg.preview}</div>
+            </div>)}
+          </div>}
+        </div>;
+      })():<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",opacity:.5}}>
+        <div style={{fontSize:40,marginBottom:10}}>✉</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:T.text2}}>Select a candidate to view outreach details</div>
+      </div>}
+    </div>
+
+    {/* Compose modal */}
+    {showCompose&&composeFor&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",animation:"fadeIn .2s ease"}} onClick={()=>setShowCompose(false)}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.bg2,border:`1px solid ${T.border2}`,borderRadius:18,padding:"28px 32px",width:"min(620px,96vw)",maxHeight:"90vh",overflow:"auto",boxShadow:`0 32px 80px ${T.shadow2}`,animation:"popIn .25s ease"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+          <h3 className="htitle" style={{fontSize:18}}>Compose Outreach</h3>
+          <button onClick={()=>setShowCompose(false)} className="bs" style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,borderRadius:8,padding:0}}>×</button>
+        </div>
+        {/* To field */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:T.bg3,border:`1px solid ${T.border}`,borderRadius:9,marginBottom:12}}>
+          <span style={{fontSize:11,fontWeight:600,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>TO:</span>
+          <Av idx={composeFor.cand.av} size={24} name={composeFor.cand.name} T={T}/>
+          <span style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{composeFor.cand.name}</span>
+          <span style={{fontSize:12,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>({composeFor.cand.email})</span>
+        </div>
+        {/* Template selector */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.text3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:7,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Template</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {OUTREACH_TEMPLATES.map(tpl=><button key={tpl.id} onClick={()=>applyTemplate(tpl.id)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${chosenTemplate===tpl.id?T.tealBrd:T.border}`,background:chosenTemplate===tpl.id?T.tealDim:T.surface,color:chosenTemplate===tpl.id?T.teal:T.text3,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",transition:"all .15s"}}>{tpl.name}</button>)}
+            <button onClick={()=>{setChosenTemplate("");setEmailSubject("");setEmailBody("");}} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${!chosenTemplate?T.tealBrd:T.border}`,background:!chosenTemplate?T.tealDim:T.surface,color:!chosenTemplate?T.teal:T.text3,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",transition:"all .15s"}}>Blank</button>
+          </div>
+        </div>
+        {/* Subject */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.text3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Subject</div>
+          <input className="inp" value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} placeholder="Email subject line…"/>
+        </div>
+        {/* Body */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.text3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Message</div>
+          <textarea value={emailBody} onChange={e=>setEmailBody(e.target.value)} style={{width:"100%",minHeight:200,background:T.inputBg,border:`1.5px solid ${T.border}`,color:T.text,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",borderRadius:9,padding:"12px 14px",outline:"none",resize:"vertical",lineHeight:1.65}} placeholder="Write your message…"/>
+        </div>
+        {/* AI suggestion note */}
+        <div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 13px",background:T.violetDim,border:`1px solid ${T.violet}22`,borderRadius:9,marginBottom:16}}>
+          <span style={{fontSize:13,flexShrink:0}}>✦</span>
+          <span style={{fontSize:12,color:T.text2,lineHeight:1.6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}><strong style={{color:T.violet}}>AI Suggestion:</strong> This message has been personalised based on {composeFor.cand.name}'s skills in {composeFor.cand.skills.slice(0,2).join(" and ")} and their {composeFor.cand.yoe} years of experience.</span>
+        </div>
+        {sendDone?<div style={{background:T.greenDim,border:`1px solid ${T.green}30`,borderRadius:11,padding:"16px",textAlign:"center"}}>
+          <div style={{fontSize:20,marginBottom:5}}>✅</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:T.green}}>Message Sent!</div>
+        </div>:<div style={{display:"flex",gap:9}}>
+          <button className="bs" onClick={()=>setShowCompose(false)} style={{flex:1,padding:"10px",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Cancel</button>
+          <button className="bp" onClick={doSend} disabled={sending||!emailSubject.trim()||!emailBody.trim()} style={{flex:2,padding:"10px",fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {sending?<><span style={{animation:"spin .8s linear infinite",display:"inline-block"}}>↻</span>Sending…</>:"✉ Send Outreach"}
+          </button>
+        </div>}
+      </div>
+    </div>}
+  </div>;
+}
+
+/* ── CANDIDATE NOTIFICATIONS & OPT-OUT PAGE ── */
+function NotificationsPage({addToast,T}) {
+  const [notifications,setNotifications]=useState(NOTIFICATION_LOG);
+  const [selected,setSelected]=useState(null);
+  const [showOptOut,setShowOptOut]=useState(false);
+  const [optOutTarget,setOptOutTarget]=useState(null);
+  const [optOutProcessing,setOptOutProcessing]=useState(false);
+  const [filter,setFilter]=useState("all");
+  const [showPreview,setShowPreview]=useState(false);
+
+  const filtered=filter==="all"?notifications:notifications.filter(n=>n.status===filter);
+  const statusColors={"Delivered":T.green,"Bounced":T.red,"Opted Out":T.amber,"Pending":T.blue};
+
+  function simulateOptOut(notif){
+    setOptOutTarget(notif);setShowOptOut(true);
+  }
+
+  function processOptOut(){
+    setOptOutProcessing(true);
+    setTimeout(()=>{
+      setNotifications(ns=>ns.map(n=>n.id===optOutTarget.id?{...n,status:"Opted Out",optedOut:true}:n));
+      setOptOutProcessing(false);setShowOptOut(false);setOptOutTarget(null);
+      addToast("Opt-out processed. Candidate suppressed from all pools. Provider propagation initiated (72h).","warning");
+    },1800);
+  }
+
+  function resendNotification(notif){
+    setNotifications(ns=>ns.map(n=>n.id===notif.id?{...n,status:"Delivered"}:n));
+    addToast(`Notification re-sent to ${notif.email} ✓`,"success");
+  }
+
+  const selNotif=selected?notifications.find(n=>n.id===selected):null;
+  const selCand=selNotif?PROFILES.find(p=>p.id===selNotif.candidateId):null;
+
+  return <div style={{flex:1,display:"flex",overflow:"hidden",background:T.bg}}>
+    {/* Left: notification log */}
+    <div style={{width:420,background:T.bg2,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
+      <div style={{padding:"16px 16px 12px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <h2 className="htitle" style={{fontSize:18}}>GDPR Notification Log</h2>
+          <button className="bs" onClick={()=>setShowPreview(true)} style={{padding:"5px 12px",fontSize:11,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>📋 Preview Email</button>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {["all","Delivered","Bounced","Opted Out"].map(s=><button key={s} onClick={()=>setFilter(s)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${filter===s?T.tealBrd:T.border}`,background:filter===s?T.tealDim:T.surface,color:filter===s?T.teal:T.text3,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",transition:"all .15s"}}>{s==="all"?"All":s}</button>)}
+        </div>
+      </div>
+      {/* Stats row */}
+      <div style={{display:"flex",gap:0,padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}>
+        {[["Sent",notifications.filter(n=>n.status==="Delivered").length,T.green],["Bounced",notifications.filter(n=>n.status==="Bounced").length,T.red],["Opt-outs",notifications.filter(n=>n.optedOut).length,T.amber]].map(([l,v,c],i)=><div key={l} style={{flex:1,textAlign:"center",borderRight:i<2?`1px solid ${T.border}`:"none",padding:"4px 0"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:16,color:c}}>{v}</div>
+          <div style={{fontSize:9,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",textTransform:"uppercase",letterSpacing:".06em"}}>{l}</div>
+        </div>)}
+      </div>
+      <div style={{flex:1,overflowY:"auto"}}>
+        {filtered.map((notif,i)=>{
+          const cand=PROFILES.find(p=>p.id===notif.candidateId);
+          const isActive=selected===notif.id;
+          return <div key={notif.id} onClick={()=>setSelected(notif.id)} style={{padding:"11px 16px",borderBottom:`1px solid ${T.border}`,cursor:"pointer",background:isActive?T.tealDim:"transparent",transition:"background .12s"}}
+            onMouseEnter={e=>{if(!isActive)e.currentTarget.style.background=T.cardHover;}}
+            onMouseLeave={e=>{if(!isActive)e.currentTarget.style.background="transparent";}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:statusColors[notif.status]||T.text3,flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cand?cand.name:"Unknown"}</div>
+              </div>
+              <span className="tag" style={{background:`${(statusColors[notif.status]||T.text3)}12`,color:statusColors[notif.status]||T.text3,border:`1px solid ${(statusColors[notif.status]||T.text3)}28`,fontSize:10}}>{notif.status}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+              <span>{notif.type==="smart_shortlist"?"Smart Shortlist":"Profile Unlock"}</span>
+              <span>{notif.date}</span>
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>
+
+    {/* Right: detail panel */}
+    <div style={{flex:1,overflowY:"auto",padding:"22px 28px"}}>
+      {selNotif&&selCand?<div>
+        {/* Notification detail header */}
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+              <Av idx={selCand.av} size={46} name={selCand.name} T={T}/>
+              <div>
+                <h3 className="htitle" style={{fontSize:18}}>{selCand.name}</h3>
+                <div style={{fontSize:13,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{selCand.email}</div>
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {selNotif.status==="Bounced"&&<button className="bp" onClick={()=>resendNotification(selNotif)} style={{padding:"8px 16px",fontSize:12,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700}}>↻ Resend</button>}
+            {!selNotif.optedOut&&<button onClick={()=>simulateOptOut(selNotif)} style={{padding:"8px 16px",borderRadius:9,border:`1px solid ${T.red}30`,background:T.redDim,color:T.red,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,fontSize:12,transition:"all .15s"}}>Simulate Opt-Out</button>}
+          </div>
+        </div>
+
+        {/* Notification details card */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`,marginBottom:18}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:14,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Notification Details</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {[
+              ["Status",selNotif.status,statusColors[selNotif.status]||T.text3],
+              ["Type",selNotif.type==="smart_shortlist"?"Smart Shortlist":"Profile Unlock",T.text2],
+              ["Date Sent",selNotif.date,T.text2],
+              ["Organisation",selNotif.org,T.text2],
+              ["Recruiter",selNotif.recruiter,T.text2],
+              ["Candidate Email",selNotif.email,T.teal],
+            ].map(([k,v,c])=><div key={k} style={{background:T.bg3,borderRadius:9,padding:"10px 12px",border:`1px solid ${T.border}`}}>
+              <div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3,fontWeight:600,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{k}</div>
+              <div style={{fontSize:13,fontWeight:600,color:c,wordBreak:"break-all",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{v}</div>
+            </div>)}
+          </div>
+        </div>
+
+        {/* Notification content preview */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`,marginBottom:18}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:12,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Notification Content Sent</div>
+          <div style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:10,padding:"16px 18px",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,color:T.text2,lineHeight:1.75}}>
+            <p style={{margin:"0 0 10px"}}><strong style={{color:T.text}}>Subject:</strong> Your professional profile was accessed for recruitment purposes</p>
+            <p style={{margin:"0 0 8px"}}>Dear {selCand.name},</p>
+            <p style={{margin:"0 0 8px"}}>We are writing to inform you that <strong style={{color:T.text}}>{selNotif.org}</strong> accessed your publicly available professional profile through the TalentOS AI Sourcing Hub for the purpose of evaluating your suitability for a recruitment opportunity.</p>
+            <p style={{margin:"0 0 8px"}}><strong style={{color:T.text}}>Data Controller:</strong> {selNotif.org}<br/><strong style={{color:T.text}}>Purpose:</strong> Recruitment outreach — legitimate interest (GDPR Art. 6(1)(f))<br/><strong style={{color:T.text}}>Data Categories:</strong> Name, contact information, professional experience, skills, education<br/><strong style={{color:T.text}}>Source:</strong> Publicly available professional data</p>
+            <p style={{margin:"0 0 8px"}}><strong style={{color:T.text}}>Your Rights:</strong> Under GDPR and Swiss nDSG, you have the right to access, rectify, erase, object to, or port your data.</p>
+            <p style={{margin:"0 0 0px",padding:"8px 12px",background:T.amberDim,border:`1px solid ${T.amber}28`,borderRadius:8}}><strong style={{color:T.amber}}>🔗 Opt-out:</strong> <span style={{textDecoration:"underline",color:T.teal}}>Click here to remove your data</span> — your profile will be immediately suppressed and the data provider notified within 72 hours.</p>
+          </div>
+        </div>
+
+        {/* Data Subject Rights panel */}
+        <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",boxShadow:`0 1px 4px ${T.shadow}`,marginBottom:18}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:12,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Data Subject Rights (GDPR / nDSG)</div>
+          {[
+            ["Right of Access (Art. 15)","Candidate can request full disclosure of held data","📋"],
+            ["Right to Erasure (Art. 17)","Opt-out triggers immediate erasure from all pools and pipelines","🗑"],
+            ["Right to Rectification (Art. 16)","Candidate can request data correction","✏️"],
+            ["Right to Object (Art. 21)","Objection treated as opt-out — immediate suppression","🚫"],
+            ["Right to Data Portability (Art. 20)","Candidate can request export of data held","📦"],
+          ].map(([right,desc,ico])=><div key={right} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:`1px solid ${T.border}`}}>
+            <span style={{fontSize:15,flexShrink:0}}>{ico}</span>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:T.text,fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:2}}>{right}</div>
+              <div style={{fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.5}}>{desc}</div>
+            </div>
+          </div>)}
+        </div>
+
+        {/* Opt-out status if applicable */}
+        {selNotif.optedOut&&<div style={{background:T.amberDim,border:`1px solid ${T.amber}30`,borderRadius:14,padding:"20px",marginBottom:18}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <span style={{fontSize:20}}>⚠️</span>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:T.amber}}>Candidate Has Opted Out</div>
+              <div style={{fontSize:12,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>This candidate's data has been suppressed from all active pools and pipelines.</div>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {[["Suppression","Immediate","Active"],["Provider Propagation","Within 72 hours","In Progress"],["Data Retention","Erased","Complete"]].map(([k,v,s])=><div key={k} style={{background:T.bg2,borderRadius:9,padding:"10px 12px",border:`1px solid ${T.amber}22`}}>
+              <div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3,fontWeight:600,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{k}</div>
+              <div style={{fontSize:13,fontWeight:600,color:T.amber,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{v}</div>
+              <div style={{fontSize:10,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s}</div>
+            </div>)}
+          </div>
+        </div>}
+      </div>:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",opacity:.5}}>
+        <div style={{fontSize:40,marginBottom:10}}>🔔</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:T.text2}}>Select a notification to view details</div>
+      </div>}
+    </div>
+
+    {/* Opt-out confirmation modal */}
+    {showOptOut&&optOutTarget&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",animation:"fadeIn .2s ease"}} onClick={()=>setShowOptOut(false)}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.bg2,border:`1px solid ${T.border2}`,borderRadius:18,padding:"28px 32px",width:"min(480px,94vw)",boxShadow:`0 32px 80px ${T.shadow2}`,animation:"popIn .25s ease"}}>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{width:58,height:58,borderRadius:"50%",background:T.amberDim,border:`2px solid ${T.amber}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 14px"}}>🚫</div>
+          <h3 className="htitle" style={{fontSize:18,marginBottom:6}}>Process Candidate Opt-Out</h3>
+          <p style={{fontSize:13,color:T.text2,lineHeight:1.6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>This will immediately suppress the candidate's data and initiate provider propagation.</p>
+        </div>
+        <div style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:11,padding:"14px 16px",marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Actions that will be taken:</div>
+          {["Immediate suppression from all active candidate pools","Removal from all job pipelines","Outreach records archived (not deleted — audit trail)","Data provider notified within 72 hours","Profile will not appear in future searches","Audit log entry created"].map(item=><div key={item} style={{display:"flex",gap:7,marginBottom:5}}>
+            <span style={{color:T.amber,fontSize:12,flexShrink:0}}>→</span>
+            <span style={{fontSize:12,color:T.text2,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{item}</span>
+          </div>)}
+        </div>
+        <div style={{display:"flex",gap:9}}>
+          <button className="bs" onClick={()=>setShowOptOut(false)} style={{flex:1,padding:"10px",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Cancel</button>
+          <button onClick={processOptOut} disabled={optOutProcessing} style={{flex:2,padding:"10px",fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,borderRadius:9,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${T.amber},#f97316)`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all .2s"}}>
+            {optOutProcessing?<><span style={{animation:"spin .8s linear infinite",display:"inline-block"}}>↻</span>Processing…</>:"Confirm Opt-Out"}
+          </button>
+        </div>
+      </div>
+    </div>}
+
+    {/* Notification email preview modal */}
+    {showPreview&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",animation:"fadeIn .2s ease"}} onClick={()=>setShowPreview(false)}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.bg2,border:`1px solid ${T.border2}`,borderRadius:18,padding:"28px 32px",width:"min(560px,94vw)",maxHeight:"85vh",overflow:"auto",boxShadow:`0 32px 80px ${T.shadow2}`,animation:"popIn .25s ease"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h3 className="htitle" style={{fontSize:18}}>GDPR Art. 14 Notification Template</h3>
+          <button onClick={()=>setShowPreview(false)} className="bs" style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,borderRadius:8,padding:0}}>×</button>
+        </div>
+        <div style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px 22px",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,color:T.text2,lineHeight:1.8}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:T.text,marginBottom:10}}>Subject: Your professional profile was accessed for recruitment purposes</div>
+          <p style={{margin:"0 0 10px"}}>Dear [Candidate Name],</p>
+          <p style={{margin:"0 0 10px"}}>Pursuant to Article 14 of the General Data Protection Regulation (GDPR) and Article 19 of the Swiss Federal Act on Data Protection (nDSG), we inform you that <strong style={{color:T.text}}>[Organisation Name]</strong> has accessed your professional profile data for recruitment purposes.</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Data Controller:</strong> [Organisation Name]</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Purpose of Processing:</strong> Evaluating suitability for employment opportunities</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Legal Basis:</strong> Legitimate Interests (GDPR Art. 6(1)(f))</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Data Categories:</strong> Name, email, phone, professional experience, skills, education, location</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Data Source:</strong> Publicly available professional profiles</p>
+          <p style={{margin:"0 0 10px"}}><strong style={{color:T.text}}>Retention Period:</strong> Maximum 12 months from date of access</p>
+          <p style={{margin:"0 0 6px"}}><strong style={{color:T.text}}>Your Rights:</strong></p>
+          <p style={{margin:"0 0 10px",paddingLeft:12}}>• Right of Access (Art. 15) • Right to Rectification (Art. 16) • Right to Erasure (Art. 17) • Right to Restriction (Art. 18) • Right to Data Portability (Art. 20) • Right to Object (Art. 21)</p>
+          <div style={{padding:"10px 14px",background:T.amberDim,border:`1px solid ${T.amber}28`,borderRadius:8,marginTop:6}}>
+            <strong style={{color:T.amber}}>To remove your data:</strong> Click the link below to immediately suppress your profile. Your data provider will be notified within 72 hours.<br/><span style={{color:T.teal,textDecoration:"underline"}}>[Opt-Out Link]</span>
+          </div>
+        </div>
+        <div style={{marginTop:14,fontSize:11,color:T.text3,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.6}}>
+          This template is automatically populated and sent at the point of profile unlock. Each notification is individual and personalised per candidate.
+        </div>
+      </div>
+    </div>}
+  </div>;
+}
+
 function PlaceholderPage({title,T}) {
   return <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:T.bg}}>
     <div style={{fontSize:44,marginBottom:14,opacity:.18}}>◎</div>
@@ -1089,7 +1724,7 @@ function PlaceholderPage({title,T}) {
 export default function App() {
   const [isDark,setIsDark]=useState(false); // light mode default
   const T=isDark?DK:LT;
-  const [page,setPage]=useState("sourcing");
+  const [page,setPage]=useState("dashboard");
   const [sub,setSub]=useState("search");
   const [credits,setCredits]=useState(47);
   const [selected,setSelected]=useState(null);
@@ -1145,11 +1780,14 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <Topbar page={page} credits={credits} unlocked={unlocked} pooled={pooled} piped={piped} T={T}/>
       <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>
+        {page==="dashboard"&&<DashboardPage credits={credits} unlocked={unlocked} pooled={pooled} piped={piped} interviews={interviews} onNavigate={goPage} T={T}/>}
         {page==="sourcing"&&sub==="search"&&<SearchPage onSearch={()=>setSub("results")} onSmartShortlist={()=>setShowSmartModal(true)} prefillPrompt={sourcingPrefill} T={T}/>}
         {page==="sourcing"&&sub==="results"&&<ResultsPage profiles={PROFILES} onProfile={setSelected} onNewSearch={()=>setSub("search")} onBulkUnlock={handleBulkUnlock} T={T}/>}
         {page==="sourcing"&&sub==="smart"&&<SmartShortlistPage onProfile={setSelected} onNewSearch={()=>setSub("search")} T={T}/>}
         {page==="pool"&&<CandidatePoolPage poolCandidates={poolCandidates} onProfile={p=>setSelected({...p,_forceUnlocked:true})} T={T}/>}
         {page==="pipeline"&&<PipelinePage pipelineCandidates={pipelineCandidates} onStartSourcing={handleStartSourcing} onProfile={setSelected} T={T}/>}
+        {page==="outreach"&&<OutreachPage onProfile={setSelected} onNavigate={goPage} addToast={addToast} T={T}/>}
+        {page==="notifications"&&<NotificationsPage addToast={addToast} T={T}/>}
         {page==="credits"&&<CreditsDash credits={credits} unlocked={unlocked} interviews={interviews} T={T}/>}
         {["interviews","jobs","settings"].includes(page)&&<PlaceholderPage title={{interviews:"AI Interviews",jobs:"Jobs",settings:"Settings"}[page]} T={T}/>}
       </div>
@@ -1159,7 +1797,7 @@ export default function App() {
     {showSmartModal&&<SmartShortlistModal credits={credits} T={T} onConfirm={handleSmartConfirm} onClose={()=>setShowSmartModal(false)}/>}
 
     {/* Profile modal */}
-    {selected&&<ProfileModal profile={selected} credits={credits} T={T} _startUnlocked={selected._forceUnlocked||false} onClose={()=>setSelected(null)} onUnlock={handleUnlock} onPool={handlePool} onPipeline={handlePipeline} onInterview={handleInterview}/>}
+    {selected&&<ProfileModal profile={selected} credits={credits} T={T} _startUnlocked={selected._forceUnlocked||false} onClose={()=>setSelected(null)} onUnlock={handleUnlock} onPool={handlePool} onPipeline={handlePipeline} onInterview={handleInterview} onOutreach={(p)=>{setSelected(null);setPage("outreach");addToast(`Outreach hub opened for ${p.name} ✓`,"info");}}/>}
 
     {/* Toasts */}
     <div style={{position:"fixed",bottom:22,right:22,zIndex:9999,display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
