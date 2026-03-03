@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import AppV5 from './AI-Sourcing-Hub_v5';
+import AppV6 from './AI-Sourcing-Hub-Integrated-v6';
 
 /* ═══════════════════════════════════════════════════════════════
    TALENTOS · VERSION LAUNCHER (Light Mode)
@@ -29,63 +31,6 @@ import { useState, useEffect, useCallback } from "react";
 
 const FONTS = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
 
-/* ── INLINE STUBS ──
-   These are placeholder components for artifact preview.
-   In your git repo, replace with actual imports (see above).
-── */
-function AppV5Stub() {
-  return <div style={{minHeight:"100vh",background:"#F5F7FA",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
-    <div style={{textAlign:"center",maxWidth:480,padding:40}}>
-      <div style={{width:64,height:64,borderRadius:16,background:"linear-gradient(135deg,#00897B,#2563EB)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",boxShadow:"0 12px 40px rgba(0,137,123,0.25)"}}>
-        <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:24,color:"#fff"}}>T</span>
-      </div>
-      <h1 style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:28,color:"#111827",marginBottom:8,letterSpacing:"-.03em"}}>AI Sourcing Hub v5.0</h1>
-      <p style={{fontSize:14,color:"#6B7280",lineHeight:1.7,marginBottom:24}}>This is a stub placeholder. In your git repo, this loads the full v5 simulator with AI Search, Candidate Pools, Job Pipelines, Outreach, Credits, and GDPR compliance tracking.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-        {["AI Search","Smart Shortlist","Candidate Pool","Job Pipeline","Outreach","GDPR Notifications","Credits","Dark Mode"].map(f=>
-          <span key={f} style={{padding:"4px 12px",borderRadius:20,background:"rgba(0,137,123,0.08)",color:"#00897B",fontSize:11,fontWeight:600,border:"1px solid rgba(0,137,123,0.2)"}}>{f}</span>
-        )}
-      </div>
-      <div style={{marginTop:28,padding:"14px 18px",background:"#FFFFFF",border:"1px solid rgba(0,0,0,0.08)",borderRadius:12,textAlign:"left"}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>To connect the real v5</div>
-        <code style={{fontSize:11,color:"#6D28D9",fontFamily:"'JetBrains Mono',monospace",lineHeight:1.8,display:"block"}}>
-          {`import AppV5 from './AI-Sourcing-Hub_v5';`}<br/>
-          {`// Then render <AppV5 /> instead of this stub`}
-        </code>
-      </div>
-    </div>
-  </div>;
-}
-
-function AppV6Stub() {
-  return <div style={{minHeight:"100vh",background:"#F5F7FA",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
-    <div style={{textAlign:"center",maxWidth:480,padding:40}}>
-      <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:20}}>
-        <div style={{width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#00897B,#2563EB)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 28px rgba(0,137,123,0.25)"}}>
-          <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:20,color:"#fff"}}>T</span>
-        </div>
-        <div style={{width:12,display:"flex",alignItems:"center",justifyContent:"center",color:"#D1D5DB",fontSize:16}}>+</div>
-        <div style={{width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#3B82F6,#8B5CF6)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 28px rgba(109,40,217,0.2)"}}>
-          <span style={{fontWeight:700,fontSize:14,color:"#fff"}}>AI</span>
-        </div>
-      </div>
-      <h1 style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:28,color:"#111827",marginBottom:8,letterSpacing:"-.03em"}}>Integrated Simulator v6.0</h1>
-      <p style={{fontSize:14,color:"#6B7280",lineHeight:1.7,marginBottom:24}}>This is a stub placeholder. In your git repo, this loads the full integrated simulator — AI Sourcing Hub + Browser Extension with bidirectional data flow.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-        {["Hub + Extension","Profile Capture","AI Match","Duplicate Check","GDPR Flow","Pool/Pipeline Sync","Outreach","Light/Dark Mode"].map(f=>
-          <span key={f} style={{padding:"4px 12px",borderRadius:20,background:"rgba(109,40,217,0.08)",color:"#6D28D9",fontSize:11,fontWeight:600,border:"1px solid rgba(109,40,217,0.2)"}}>{f}</span>
-        )}
-      </div>
-      <div style={{marginTop:28,padding:"14px 18px",background:"#FFFFFF",border:"1px solid rgba(0,0,0,0.08)",borderRadius:12,textAlign:"left"}}>
-        <div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>To connect the real v6</div>
-        <code style={{fontSize:11,color:"#6D28D9",fontFamily:"'JetBrains Mono',monospace",lineHeight:1.8,display:"block"}}>
-          {`import AppV6 from './AI-Sourcing-Hub-Integrated-v6';`}<br/>
-          {`// Then render <AppV6 /> instead of this stub`}
-        </code>
-      </div>
-    </div>
-  </div>;
-}
 
 /* ═══════════════════════════════════════════════
    LAUNCHER
@@ -104,7 +49,7 @@ const VERSIONS = [
     icon: "◎",
     status: "Stable",
     lines: "1,808",
-    Component: AppV5Stub,
+    Component: AppV5,
   },
   {
     id: "v6",
@@ -118,7 +63,7 @@ const VERSIONS = [
     icon: "🧩",
     status: "Latest",
     lines: "755",
-    Component: AppV6Stub,
+    Component: AppV6,
   },
 ];
 
@@ -149,7 +94,7 @@ export default function TalentOSLauncher() {
         <button
           onClick={() => setActive(null)}
           style={{
-            position: "fixed", top: 14, right: 14, zIndex: 9999,
+            position: "fixed", bottom: 14, right: 14, zIndex: 9999,
             padding: "7px 14px", borderRadius: 9,
             background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)",
             border: "1px solid rgba(0,0,0,0.1)",
