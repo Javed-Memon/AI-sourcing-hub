@@ -1,0 +1,754 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+/* ═══════════════════════════════════════════════════════════════
+   TALENTOS · INTEGRATED SIMULATOR v6.0
+   AI Sourcing Hub + Browser Extension
+   ─────────────────────────────────────
+   Architecture:
+   • LaunchPage → router between Hub / Extension modes
+   • Shared candidate store at root (extensionCandidates[])
+   • Extension callbacks push into Hub's pool/pipeline
+   • Hub views show extension-sourced candidates with 🧩 badge
+═══════════════════════════════════════════════════════════════ */
+
+const FONTS_URL = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap";
+
+/* ── THEMES ── */
+const LT={bg:"#F5F7FA",bg2:"#FFFFFF",bg3:"#EEF2F8",surface:"rgba(255,255,255,0.95)",surface2:"#FFFFFF",border:"rgba(0,0,0,0.07)",border2:"rgba(0,0,0,0.13)",text:"#111827",text2:"#4B5563",text3:"#9CA3AF",teal:"#00897B",tealDim:"rgba(0,137,123,0.09)",tealBrd:"rgba(0,137,123,0.25)",blue:"#2563EB",blueDim:"rgba(37,99,235,0.09)",violet:"#6D28D9",violetDim:"rgba(109,40,217,0.09)",amber:"#D97706",amberDim:"rgba(217,119,6,0.09)",green:"#059669",greenDim:"rgba(5,150,105,0.09)",red:"#DC2626",redDim:"rgba(220,38,38,0.08)",shadow:"rgba(0,0,0,0.06)",shadow2:"rgba(0,0,0,0.14)",navActive:"rgba(0,137,123,0.09)",cardHover:"rgba(0,137,123,0.03)",inputBg:"rgba(0,0,0,0.025)",scoreHigh:["rgba(5,150,105,0.1)","#059669"],scoreMid:["rgba(217,119,6,0.1)","#D97706"],scoreLow:["rgba(220,38,38,0.09)","#DC2626"]};
+const DK={bg:"#0A0F1C",bg2:"#0F1729",bg3:"#131D32",surface:"rgba(255,255,255,0.045)",surface2:"rgba(255,255,255,0.08)",border:"rgba(255,255,255,0.08)",border2:"rgba(255,255,255,0.15)",text:"#EDF2FF",text2:"#8B95A8",text3:"#485060",teal:"#00C9A7",tealDim:"rgba(0,201,167,0.12)",tealBrd:"rgba(0,201,167,0.28)",blue:"#3B82F6",blueDim:"rgba(59,130,246,0.12)",violet:"#7C6FFF",violetDim:"rgba(124,111,255,0.12)",amber:"#F59E0B",amberDim:"rgba(245,158,11,0.1)",green:"#10B981",greenDim:"rgba(16,185,129,0.12)",red:"#EF4444",redDim:"rgba(239,68,68,0.1)",shadow:"rgba(0,0,0,0.35)",shadow2:"rgba(0,0,0,0.55)",navActive:"rgba(0,201,167,0.12)",cardHover:"rgba(0,201,167,0.05)",inputBg:"rgba(255,255,255,0.04)",scoreHigh:["rgba(16,185,129,0.15)","#10B981"],scoreMid:["rgba(245,158,11,0.15)","#F59E0B"],scoreLow:["rgba(239,68,68,0.15)","#EF4444"]};
+// Extension theme tokens (derived from main theme)
+const XLT={bg:"#F8FAFC",bg2:"#FFFFFF",bg3:"#F1F5F9",border:"rgba(0,0,0,0.08)",border2:"rgba(0,0,0,0.14)",text:"#0F172A",text2:"#475569",text3:"#94A3B8",text4:"#CBD5E1",sidebarBg:"#FFFFFF",sidebarBorder:"rgba(0,0,0,0.06)",headerBg:"rgba(255,255,255,0.85)",tabBg:"rgba(0,0,0,0.02)",chromeBg:"#F1F5F9",chromeBorder:"rgba(0,0,0,0.08)",chromeUrlBg:"rgba(0,0,0,0.04)",profileBorder:"3px solid #FFFFFF",cardBg:"rgba(0,0,0,0.015)",cardBorder:"rgba(0,0,0,0.06)",sectionBg:"rgba(0,0,0,0.02)",skillBg:"rgba(0,0,0,0.04)",skillBorder:"rgba(0,0,0,0.08)",skillColor:"#475569",inputBg:"rgba(0,0,0,0.03)",inputBorder:"rgba(0,0,0,0.12)",dropdownBg:"#FFFFFF",btnGhostBg:"rgba(0,0,0,0.04)",btnGhostBorder:"rgba(0,0,0,0.1)",progressBg:"rgba(0,0,0,0.06)",checkBg:"rgba(0,0,0,0.08)",checkDone:"#059669",checkDoneText:"#065F46",guideText:"#2563EB",guideBg:"rgba(37,99,235,0.06)",guideBorder:"rgba(37,99,235,0.12)",guideDotOff:"rgba(0,0,0,0.08)",notifSuccessBg:"#ECFDF5",notifSuccessBorder:"#059669",notifInfoBg:"#EFF6FF",notifInfoBorder:"#2563EB",notifText:"#0F172A",seniorityBg:"rgba(109,40,217,0.08)",seniorityColor:"#6D28D9",expBg:"rgba(5,150,105,0.08)",expColor:"#059669",computingBg:"rgba(37,99,235,0.08)",computingColor:"#2563EB",successBg:"rgba(5,150,105,0.06)",successBorder:"rgba(5,150,105,0.18)",successColor:"#059669",successName:"#334155",gdprBg:"rgba(217,119,6,0.06)",gdprBorder:"rgba(217,119,6,0.15)",gdprColor:"#B45309",gdprText:"#92400E",dupBg:"rgba(217,119,6,0.05)",dupBorder:"rgba(217,119,6,0.18)",dupColor:"#D97706",newBg:"rgba(37,99,235,0.06)",newBorder:"rgba(37,99,235,0.15)",newColor:"#2563EB",existBg:"rgba(109,40,217,0.06)",existBorder:"rgba(109,40,217,0.15)",existColor:"#6D28D9",mergeBtnBg:"rgba(37,99,235,0.08)",mergeBtnBorder:"rgba(37,99,235,0.22)",mergeBtnColor:"#2563EB",viewBtnBg:"rgba(109,40,217,0.08)",viewBtnBorder:"rgba(109,40,217,0.22)",viewBtnColor:"#6D28D9",outreachBtnBg:"rgba(5,150,105,0.06)",outreachBtnBorder:"rgba(5,150,105,0.22)",outreachBtnColor:"#059669",divider:"rgba(0,0,0,0.05)",tagBg:"rgba(37,99,235,0.08)",tagColor:"#2563EB",poolCheckActive:"#6D28D9",poolDoneBg:"rgba(109,40,217,0.1)",poolDoneColor:"#6D28D9"};
+const XDK={bg:"#0B0F19",bg2:"#111827",bg3:"#1E293B",border:"rgba(255,255,255,0.06)",border2:"rgba(255,255,255,0.10)",text:"#F9FAFB",text2:"#9CA3AF",text3:"#6B7280",text4:"#4B5563",sidebarBg:"linear-gradient(180deg,#111827,#0F172A)",sidebarBorder:"rgba(255,255,255,0.06)",headerBg:"rgba(0,0,0,0.3)",tabBg:"rgba(0,0,0,0.15)",chromeBg:"rgba(0,0,0,0.3)",chromeBorder:"rgba(255,255,255,0.06)",chromeUrlBg:"rgba(255,255,255,0.05)",profileBorder:"3px solid #111827",cardBg:"rgba(255,255,255,0.02)",cardBorder:"rgba(255,255,255,0.06)",sectionBg:"rgba(255,255,255,0.02)",skillBg:"rgba(255,255,255,0.04)",skillBorder:"rgba(255,255,255,0.10)",skillColor:"#9CA3AF",inputBg:"rgba(255,255,255,0.03)",inputBorder:"rgba(255,255,255,0.10)",dropdownBg:"#1F2937",btnGhostBg:"rgba(255,255,255,0.05)",btnGhostBorder:"rgba(255,255,255,0.10)",progressBg:"rgba(255,255,255,0.06)",checkBg:"rgba(255,255,255,0.1)",checkDone:"#10B981",checkDoneText:"#6EE7B7",guideText:"#93C5FD",guideBg:"rgba(59,130,246,0.08)",guideBorder:"rgba(59,130,246,0.15)",guideDotOff:"rgba(255,255,255,0.1)",notifSuccessBg:"#065F46",notifSuccessBorder:"#10B981",notifInfoBg:"#1E3A5F",notifInfoBorder:"#3B82F6",notifText:"#FFFFFF",seniorityBg:"rgba(139,92,246,0.15)",seniorityColor:"#A78BFA",expBg:"rgba(16,185,129,0.1)",expColor:"#6EE7B7",computingBg:"rgba(59,130,246,0.1)",computingColor:"#60A5FA",successBg:"rgba(16,185,129,0.06)",successBorder:"rgba(16,185,129,0.2)",successColor:"#6EE7B7",successName:"#D1D5DB",gdprBg:"rgba(245,158,11,0.06)",gdprBorder:"rgba(245,158,11,0.15)",gdprColor:"#F59E0B",gdprText:"#92844A",dupBg:"rgba(245,158,11,0.06)",dupBorder:"rgba(245,158,11,0.2)",dupColor:"#FBBF24",newBg:"rgba(59,130,246,0.08)",newBorder:"rgba(59,130,246,0.2)",newColor:"#60A5FA",existBg:"rgba(139,92,246,0.08)",existBorder:"rgba(139,92,246,0.2)",existColor:"#A78BFA",mergeBtnBg:"rgba(59,130,246,0.1)",mergeBtnBorder:"rgba(59,130,246,0.3)",mergeBtnColor:"#60A5FA",viewBtnBg:"rgba(139,92,246,0.1)",viewBtnBorder:"rgba(139,92,246,0.3)",viewBtnColor:"#A78BFA",outreachBtnBg:"rgba(16,185,129,0.08)",outreachBtnBorder:"rgba(16,185,129,0.3)",outreachBtnColor:"#6EE7B7",divider:"rgba(255,255,255,0.06)",tagBg:"rgba(59,130,246,0.12)",tagColor:"#60A5FA",poolCheckActive:"#8B5CF6",poolDoneBg:"rgba(139,92,246,0.15)",poolDoneColor:"#A78BFA"};
+
+/* ── SHARED DATA ── */
+const JOBS=[
+  {id:1,title:"Senior ML Engineer",dept:"AI Research",location:"Zürich",open:3},
+  {id:2,title:"Full-Stack Developer",dept:"Engineering",location:"Bern",open:2},
+  {id:3,title:"Product Manager – AI",dept:"Product",location:"Lausanne",open:1},
+  {id:4,title:"Finance Director",dept:"Finance",location:"Basel",open:2},
+  {id:5,title:"DevOps Engineer",dept:"Infrastructure",location:"Remote",open:1},
+];
+const POOLS=[
+  {id:"p1",name:"AI / ML Talent",count:48},{id:"p2",name:"Engineering Pipeline",count:124},
+  {id:"p3",name:"Leadership Candidates",count:31},{id:"p4",name:"Swiss Market – General",count:210},
+];
+const AVC=["#00C9A7","#7C6FFF","#EF4444","#F59E0B","#10B981","#3B82F6","#F97316","#A855F7"];
+
+// Hub profiles (pre-existing in ATS)
+const HUB_PROFILES=[
+  {id:1,name:"Lena Müller",title:"Senior DevOps Engineer",employer:"Google Switzerland",loc:"Zürich, CH",yoe:9,score:96,skills:["Kubernetes","Terraform","AWS","Docker","CI/CD"],av:0,source:"linkedin",email:"lena.muller@email.ch",summary:"9 years driving large-scale K8s at Google."},
+  {id:2,name:"Marco Bernasconi",title:"Platform Engineer",employer:"Zühlke Engineering",loc:"Basel, CH",yoe:7,score:91,skills:["Kubernetes","AWS","Docker","Python","Terraform"],av:1,source:"github",email:"m.bernasconi@mail.ch",summary:"Platform engineer, IaC and developer productivity."},
+  {id:3,name:"Sophie Dubois",title:"Cloud Infrastructure Lead",employer:"UBS Group AG",loc:"Bern, CH",yoe:11,score:88,skills:["AWS","Terraform","Kubernetes","Security"],av:2,source:"linkedin",email:"s.dubois@proton.me",summary:"Cloud lead with 11 years in banking."},
+  {id:4,name:"Adrian Keller",title:"Site Reliability Engineer",employer:"Teamsystems SA",loc:"Geneva, CH",yoe:6,score:84,skills:["Kubernetes","Prometheus","Python","GCP"],av:3,source:"stackoverflow",email:"a.keller@gmail.com",summary:"SRE expert in observability."},
+  {id:5,name:"Petra Novak",title:"DevOps Lead",employer:"Swisscom AG",loc:"Zürich, CH",yoe:12,score:93,skills:["Kubernetes","Terraform","Azure","Docker","Go"],av:0,source:"linkedin",email:"p.novak@gmail.com",summary:"DevOps lead, 12 years in telecom infra."},
+];
+
+// Extension mock profile pages
+const EXT_PROFILES={
+  linkedin:{platform:"LinkedIn",color:"#0A66C2",url:"linkedin.com/in/sarah-chen-ml",name:"Sarah Chen",title:"Senior Machine Learning Engineer",company:"DeepMind",location:"Zürich, Switzerland",email:"",skills:["PyTorch","TensorFlow","NLP","Computer Vision","MLOps","Python","Kubernetes"],experience:"8 years",education:"PhD Computer Science, Stanford University",seniority:"Senior",summary:"Building next-gen AI systems. 8+ years in ML/DL. PhD Stanford."},
+  github:{platform:"GitHub",color:"#24292F",url:"github.com/marcoweber",name:"Marco Weber",title:"Open Source Contributor",company:"ETH Zürich",location:"Bern, Switzerland",email:"marco.w@proton.me",skills:["Rust","Go","TypeScript","PostgreSQL","Docker","AWS","Systems Design"],experience:"6 years",education:"MSc Computer Science, ETH Zürich",seniority:"Mid-Senior",summary:"Full-stack dev & systems engineer. 200+ Rust ecosystem contributions."},
+  indeed:{platform:"Indeed",color:"#2164F3",url:"indeed.com/r/elena-rossi",name:"Elena Rossi",title:"Product Manager",company:"Nestlé",location:"Lausanne, Switzerland",email:"",skills:["Product Strategy","Agile","Data Analytics","Stakeholder Mgmt","Roadmapping"],experience:"10 years",education:"MBA, IMD Lausanne",seniority:"Lead",summary:"Product leader, 10 years FMCG & tech. 50M+ users."},
+  xing:{platform:"Xing",color:"#006567",url:"xing.com/profile/thomas-mueller",name:"Thomas Müller",title:"Head of Finance",company:"UBS Group AG",location:"Basel, Switzerland",email:"t.mueller@ubs.com",skills:["Financial Modeling","Risk Management","IFRS","Treasury","M&A","SAP"],experience:"15 years",education:"MSc Finance, University of St. Gallen",seniority:"Executive",summary:"Finance leader. 15 years in banking, treasury, and risk management."},
+};
+const EXT_DUPLICATE={name:"Sarah Chen",title:"ML Engineer",company:"Google Brain",stage:"Talent Pool",addedDate:"2025-11-14"};
+
+/* ── OUTREACH ── */
+const OUTREACH_TEMPLATES=[
+  {id:"intro",name:"Introduction",subject:"Exciting opportunity at Novartis AG",body:"Hi {{name}},\n\nI came across your profile and was impressed by your experience. We have an exciting opportunity I believe aligns well with your background.\n\nWould you be open to a brief conversation?\n\nBest regards,\nSarah Kessler\nHR Manager, Novartis AG"},
+  {id:"role",name:"Role Pitch",subject:"{{role}} — Novartis AG",body:"Hi {{name}},\n\nI'm reaching out regarding our {{role}} position.\n\nKey highlights:\n• Competitive compensation\n• Hybrid work model\n• Career growth\n\nBest, Sarah Kessler"},
+  {id:"followup",name:"Follow-up",subject:"Following up — {{role}}",body:"Hi {{name}},\n\nWanted to follow up on my previous message. No pressure — let me know if interested.\n\nWarm regards, Sarah Kessler"},
+];
+
+const INIT_OUTREACH=[
+  {id:1,candidateId:1,candidateName:"Lena Müller",status:"Meeting Booked",messages:[{dir:"out",date:"2026-02-22",preview:"Hi Lena, I came across your profile…"},{dir:"in",date:"2026-02-22",preview:"I'd be happy to learn more…"}]},
+  {id:2,candidateId:2,candidateName:"Marco Bernasconi",status:"Responded",messages:[{dir:"out",date:"2026-02-23",preview:"Hi Marco, I came across your profile…"},{dir:"in",date:"2026-02-24",preview:"Sounds interesting…"}]},
+  {id:3,candidateId:5,candidateName:"Petra Novak",status:"Contacted",messages:[{dir:"out",date:"2026-02-24",preview:"Hi Petra, reaching out regarding…"}]},
+  {id:4,candidateId:3,candidateName:"Sophie Dubois",status:"Not Contacted",messages:[]},
+];
+
+/* ── CSS ── */
+function makeCSS(T){return `
+@import url('${FONTS_URL}');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;font-family:'Plus Jakarta Sans',sans-serif;background:${T.bg}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${T.border2};border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes popIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideDown{from{transform:translate(-50%,-20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:8px;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500;color:${T.text3};border:none;background:transparent;width:100%;text-align:left;font-family:'Plus Jakarta Sans',sans-serif}
+.nav-item:hover{background:${T.surface2};color:${T.text2}}
+.nav-item.active{background:${T.navActive};color:${T.teal};border-left:2.5px solid ${T.teal};font-weight:600}
+.bp{background:linear-gradient(135deg,${T.teal},${T.blue});color:#fff;border:none;cursor:pointer;font-weight:600;border-radius:9px;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif}
+.bp:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:0 4px 16px ${T.teal}44}
+.bp:disabled{opacity:.36;cursor:default;filter:none;transform:none;box-shadow:none}
+.bs{background:${T.surface};color:${T.text2};border:1px solid ${T.border};cursor:pointer;font-weight:500;border-radius:9px;transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif}
+.bs:hover{background:${T.surface2};border-color:${T.border2}}
+.bt{background:${T.tealDim};color:${T.teal};border:1px solid ${T.tealBrd};cursor:pointer;font-weight:600;border-radius:9px;transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif}
+.bt:hover{background:${T.teal};color:#fff}
+.inp{background:${T.inputBg};border:1.5px solid ${T.border};color:${T.text};font-size:13px;border-radius:9px;padding:9px 13px;outline:none;transition:border-color .2s;width:100%;font-family:'Plus Jakarta Sans',sans-serif}
+.inp:focus{border-color:${T.teal}}
+.inp::placeholder{color:${T.text3}}
+select.inp option{background:${T.bg2};color:${T.text}}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif}
+.htitle{font-family:'Playfair Display',serif;font-weight:700;color:${T.text};letter-spacing:-.02em}
+`;}
+
+/* ── ATOMS ── */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const sColor=(s,T)=>s>=85?T.scoreHigh[1]:s>=70?T.scoreMid[1]:T.scoreLow[1];
+const sBg=(s,T)=>s>=85?T.scoreHigh[0]:s>=70?T.scoreMid[0]:T.scoreLow[0];
+
+function Av({idx=0,size=36,name="?",T}){
+  const c=AVC[idx%AVC.length];
+  return <div style={{width:size,height:size,borderRadius:"50%",background:`${c}18`,border:`2px solid ${c}38`,display:"flex",alignItems:"center",justifyContent:"center",color:c,fontSize:size*.32,fontWeight:700,fontFamily:"'Playfair Display',serif",flexShrink:0}}>{(name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}</div>;
+}
+function ScB({score,T}){return <span className="tag" style={{background:sBg(score,T),color:sColor(score,T),border:`1px solid ${sColor(score,T)}40`}}>{score}%</span>;}
+function Toast({msg,type,T,onClose}){
+  useEffect(()=>{const t=setTimeout(onClose,4000);return()=>clearTimeout(t)},[]);
+  const c={success:T.green,info:T.teal,warning:T.amber,error:T.red}[type]||T.teal;
+  return <div style={{background:T.bg2,border:`1px solid ${c}28`,borderRadius:11,padding:"11px 15px",maxWidth:400,display:"flex",alignItems:"center",gap:10,boxShadow:`0 8px 28px ${T.shadow2}`,animation:"fadeUp .3s ease"}}><span style={{width:7,height:7,borderRadius:"50%",background:c,flexShrink:0,animation:"pulse 2s infinite"}}/><span style={{fontSize:13,color:T.text,flex:1}}>{msg}</span><button onClick={onClose} style={{background:"none",border:"none",color:T.text3,cursor:"pointer",fontSize:15,padding:0}}>×</button></div>;
+}
+
+/* ═════════════════════════════════════════════════
+   SECTION 1: LAUNCH PAGE
+═════════════════════════════════════════════════ */
+function LaunchPage({onLaunch,T}){
+  return <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40,position:"relative",overflow:"hidden"}}>
+    <div style={{position:"absolute",inset:0,opacity:.04,background:`radial-gradient(circle at 25% 35%,${T.teal} 0%,transparent 50%),radial-gradient(circle at 75% 65%,${T.blue} 0%,transparent 50%)`,pointerEvents:"none"}}/>
+    <div style={{textAlign:"center",marginBottom:44,position:"relative",animation:"fadeUp .5s ease"}}>
+      <div style={{width:68,height:68,borderRadius:18,background:`linear-gradient(135deg,${T.teal},${T.blue})`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px",boxShadow:`0 12px 40px ${T.teal}33`}}>
+        <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:26,color:"#fff"}}>T</span>
+      </div>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:34,color:T.text,marginBottom:7,letterSpacing:"-.03em"}}>TalentOS Platform</h1>
+      <p style={{fontSize:15,color:T.text2,maxWidth:500,lineHeight:1.7,margin:"0 auto"}}>AI-powered hiring platform — Integrated Simulator. Choose a module to explore the candidate sourcing experience.</p>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:22,maxWidth:740,width:"100%"}}>
+      {[
+        {id:"hub",ico:"◎",title:"AI Sourcing Hub",desc:"Full ATS platform with AI search, candidate pools, job pipelines, outreach workflows, and compliance tracking.",tags:["AI Search","Candidate Pool","Pipelines","Outreach","Credits","GDPR"],c:T.teal,c2:T.blue},
+        {id:"extension",ico:"AI",title:"Browser Extension",desc:"Source candidates from LinkedIn, GitHub, Indeed & Xing profile pages. Capture, enrich, and import directly to ATS.",tags:["Profile Capture","AI Match","Duplicate Check","GDPR","Batch","Pool/Pipeline"],c:T.violet||"#6D28D9",c2:T.blue},
+      ].map((card,ci)=><button key={card.id} onClick={()=>onLaunch(card.id)} style={{background:T.bg2,border:`1.5px solid ${T.border}`,borderRadius:18,padding:"32px 28px",cursor:"pointer",textAlign:"left",transition:"all .25s",fontFamily:"inherit",position:"relative",overflow:"hidden",boxShadow:`0 4px 20px ${T.shadow}`,animation:`fadeUp .5s ease ${.1+ci*.1}s both`}}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor=`${card.c}44`;e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.boxShadow=`0 12px 40px ${T.shadow2}`;}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=`0 4px 20px ${T.shadow}`;}}>
+        <div style={{position:"absolute",top:0,right:0,width:110,height:110,borderRadius:"0 18px 0 70px",background:`linear-gradient(135deg,${card.c}12,${card.c2}12)`,opacity:.6}}/>
+        <div style={{width:48,height:48,borderRadius:13,background:`linear-gradient(135deg,${card.c},${card.c2})`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18,boxShadow:`0 6px 20px ${card.c}33`,fontSize:card.id==="hub"?22:16,fontWeight:800,color:"#fff",fontFamily:card.id==="hub"?"inherit":"'Plus Jakarta Sans',sans-serif"}}>{card.ico}</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:20,color:T.text,marginBottom:7}}>{card.title}</h2>
+        <p style={{fontSize:13,color:T.text2,lineHeight:1.6,marginBottom:14}}>{card.desc}</p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{card.tags.map(f=><span key={f} className="tag" style={{background:`${card.c}12`,color:card.c,border:`1px solid ${card.c}30`,fontSize:10}}>{f}</span>)}</div>
+        <div style={{marginTop:18,display:"flex",alignItems:"center",gap:5,color:card.c,fontSize:13,fontWeight:600}}>Launch <span>→</span></div>
+      </button>)}
+    </div>
+    <div style={{marginTop:28,display:"flex",alignItems:"center",gap:9,padding:"10px 20px",borderRadius:28,background:T.bg2,border:`1px solid ${T.border}`,boxShadow:`0 2px 8px ${T.shadow}`,animation:"fadeUp .5s ease .35s both"}}>
+      <span style={{width:7,height:7,borderRadius:"50%",background:T.green,animation:"pulse 2s infinite"}}/><span style={{fontSize:12,color:T.text2}}>Integrated: Candidates sourced via extension automatically appear in the Sourcing Hub</span>
+    </div>
+    <div style={{marginTop:14,fontSize:11,color:T.text3,animation:"fadeUp .5s ease .4s both"}}>Integrated Simulator v6.0 · AI Sourcing Hub v5 + AI Talent Scout Extension v1</div>
+  </div>;
+}
+
+/* ═════════════════════════════════════════════════
+   SECTION 2: BROWSER EXTENSION SIMULATOR
+═════════════════════════════════════════════════ */
+function ExtensionApp({onBack,onAddToPool,onAddToPipeline,onViewInATS,onStartOutreach,isDark,toggleTheme}){
+  const [platform,setPlatform]=useState(null);
+  const [extState,setExtState]=useState("closed"); // closed|parsing|capture
+  const [profile,setProfile]=useState(null);
+  const [selJob,setSelJob]=useState(null);
+  const [selPools,setSelPools]=useState([]);
+  const [tags,setTags]=useState([]);
+  const [tagIn,setTagIn]=useState("");
+  const [notes,setNotes]=useState("");
+  const [matchScore,setMatchScore]=useState(null);
+  const [computing,setComputing]=useState(false);
+  const [showDup,setShowDup]=useState(false);
+  const [success,setSuccess]=useState(false);
+  const [showJobDD,setShowJobDD]=useState(false);
+  const [showPoolDD,setShowPoolDD]=useState(false);
+  const [jobSearch,setJobSearch]=useState("");
+  const [importing,setImporting]=useState(false);
+  const [consent,setConsent]=useState(0);
+  const [parseProgress,setParseProg]=useState(0);
+  const [editField,setEditField]=useState(null);
+  const [editVals,setEditVals]=useState({});
+  const [gdprOpen,setGdprOpen]=useState(false);
+  const [notif,setNotif]=useState(null);
+  const [step,setStep]=useState(0);
+  const [guide,setGuide]=useState(true);
+  const [imported,setImported]=useState(null);
+
+  const flash=useCallback((m,t="info")=>{setNotif({m,t});setTimeout(()=>setNotif(null),3000);},[]);
+  const reset=useCallback(()=>{setExtState("closed");setProfile(null);setSelJob(null);setSelPools([]);setTags([]);setNotes("");setMatchScore(null);setComputing(false);setShowDup(false);setSuccess(false);setShowJobDD(false);setShowPoolDD(false);setJobSearch("");setImporting(false);setConsent(0);setParseProg(0);setEditField(null);setEditVals({});setGdprOpen(false);setImported(null);},[]);
+
+  const pick=useCallback(k=>{reset();setPlatform(k);setStep(1);},[reset]);
+
+  const open=useCallback(async()=>{
+    if(!platform)return;setExtState("parsing");setStep(2);
+    for(let i=0;i<=100;i+=10){await sleep(40);setParseProg(Math.min(i,100));}
+    const p=EXT_PROFILES[platform];setProfile({...p});setEditVals({...p});
+    setExtState("capture");setStep(3);
+  },[platform]);
+
+  const doMatch=useCallback(async jid=>{
+    setSelJob(jid);setComputing(true);setShowJobDD(false);
+    await sleep(1100);
+    const sc={1:92,2:78,3:65,4:45,5:71};setMatchScore(sc[jid]||Math.floor(Math.random()*30+55));setComputing(false);
+  },[]);
+
+  function toATS(p,jid){
+    return {id:Date.now(),name:p.name,title:p.title,employer:p.company,loc:p.location,yoe:parseInt(p.experience)||5,score:matchScore||Math.floor(Math.random()*15+78),skills:p.skills||[],av:Math.floor(Math.random()*8),source:"extension",sourcePlatform:p.platform,sourceUrl:p.url,email:p.email||"",summary:p.summary||"",tags,notes,assignedJob:jid?String(jid):null,captureDate:new Date().toISOString(),gdprDeadline:new Date(Date.now()+30*864e5).toISOString().split("T")[0]};
+  }
+
+  const doImport=useCallback(async()=>{
+    setImporting(true);setStep(4);await sleep(700);
+    if(platform==="linkedin"){setShowDup(true);setImporting(false);return;}
+    await sleep(500);setConsent(1);await sleep(350);setConsent(2);await sleep(350);setConsent(3);await sleep(350);
+    setImporting(false);setSuccess(true);setStep(5);
+    const c=toATS(profile,selJob);setImported(c);
+    if(selJob)onAddToPipeline(c);else onAddToPool(c);
+    flash("Candidate added to platform!","success");
+  },[platform,profile,selJob,matchScore,tags,notes,flash]);
+
+  const dupAction=useCallback(async a=>{
+    if(a==="view"){flash("Opening existing profile in ATS…");onViewInATS(null);return;}
+    setShowDup(false);setImporting(true);
+    await sleep(500);setConsent(1);await sleep(300);setConsent(2);await sleep(300);setConsent(3);await sleep(300);
+    setImporting(false);setSuccess(true);setStep(5);
+    const c=toATS(profile,selJob);setImported(c);
+    if(selJob)onAddToPipeline(c);else onAddToPool(c);
+    flash(a==="merge"?"Profile merged & updated!":"New record created!","success");
+  },[profile,selJob,matchScore,tags,notes,flash]);
+
+  const togPool=pid=>setSelPools(p=>p.includes(pid)?p.filter(x=>x!==pid):[...p,pid]);
+  const addTag=()=>{if(tagIn.trim()&&!tags.includes(tagIn.trim())){setTags([...tags,tagIn.trim()]);setTagIn("");}};
+  const fJobs=JOBS.filter(j=>j.title.toLowerCase().includes(jobSearch.toLowerCase()));
+  const scC=s=>s>=80?"#10B981":s>=60?"#F59E0B":"#EF4444";
+
+  const guides=[
+    "Select a platform tab to simulate visiting a candidate profile page.",
+    "You're viewing a profile. Click the AI button (top-right) to activate the extension sidebar.",
+    "The extension is parsing the profile page…",
+    "Review parsed data, select a job or pool, then click 'Add to Platform'.",
+    "Running duplicate check and GDPR compliance…",
+    "Done! Use 'View in ATS' or 'Start Outreach' to jump to the Sourcing Hub.",
+  ];
+
+  const pIcons={LinkedIn:<svg width="14" height="14" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>,GitHub:<svg width="14" height="14" viewBox="0 0 24 24" fill="#555"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>,Indeed:<svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="#2164F3"/><text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="700">iD</text></svg>,Xing:<svg width="14" height="14" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="3" fill="#006567"/><text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="700">X</text></svg>};
+
+  const E=isDark?XDK:XLT; // extension palette from theme
+
+  return <div style={{width:"100%",minHeight:"100vh",background:isDark?`linear-gradient(145deg,${E.bg},${E.bg2},${E.bg})`:E.bg,fontFamily:"'Plus Jakarta Sans','Helvetica Neue',sans-serif",color:E.text,overflow:"hidden"}}>
+    {notif&&<div style={{position:"fixed",top:18,left:"50%",transform:"translateX(-50%)",zIndex:9999,padding:"10px 22px",borderRadius:11,background:notif.t==="success"?E.notifSuccessBg:E.notifInfoBg,border:`1px solid ${notif.t==="success"?E.notifSuccessBorder:E.notifInfoBorder}`,color:E.notifText,fontSize:13,fontWeight:500,boxShadow:`0 8px 32px ${isDark?"rgba(0,0,0,0.4)":"rgba(0,0,0,0.12)"}`,animation:"slideDown .3s ease"}}>{notif.t==="success"&&"✓ "}{notif.m}</div>}
+
+    {/* Header */}
+    <div style={{padding:"10px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`1px solid ${E.border}`,background:E.headerBg,backdropFilter:isDark?"none":"blur(12px)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <button onClick={onBack} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${E.border2}`,background:E.btnGhostBg,color:E.text2,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>← Launcher</button>
+        <div style={{width:1,height:18,background:E.border}}/>
+        <div style={{width:26,height:26,borderRadius:7,background:"linear-gradient(135deg,#3B82F6,#8B5CF6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#fff"}}>AI</div>
+        <div><div style={{fontSize:13,fontWeight:600,color:E.text}}>AI Talent Scout — Browser Extension</div><div style={{fontSize:9,color:E.text3}}>Connected to AI Sourcing Hub</div></div>
+      </div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={toggleTheme} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${E.border2}`,background:E.btnGhostBg,color:E.text2,fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}}>{isDark?"☀️":"🌙"}<span>{isDark?"Light":"Dark"}</span></button>
+        <button onClick={()=>{reset();setPlatform(null);setStep(0);}} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${E.border2}`,background:E.btnGhostBg,color:E.text2,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>↺ Reset</button>
+        <button onClick={()=>setGuide(!guide)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${guide?"#3B82F6":E.border2}`,background:guide?E.guideBg:E.btnGhostBg,color:guide?E.guideText:E.text2,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>{guide?"◉":"○"} Guide</button>
+      </div>
+    </div>
+
+    {guide&&<div style={{padding:"7px 18px",background:E.guideBg,borderBottom:`1px solid ${E.guideBorder}`,display:"flex",alignItems:"center",gap:8}}>
+      <div style={{width:18,height:18,borderRadius:5,background:"#3B82F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff",flexShrink:0}}>{step+1}</div>
+      <span style={{fontSize:11,color:E.guideText}}>{guides[step]||guides[0]}</span>
+      <div style={{marginLeft:"auto",display:"flex",gap:3}}>{guides.map((_,i)=><div key={i} style={{width:i===step?14:4,height:4,borderRadius:2,background:i<=step?"#3B82F6":E.guideDotOff,transition:"all .3s"}}/>)}</div>
+    </div>}
+
+    {/* Platform Tabs */}
+    <div style={{padding:"9px 18px",display:"flex",gap:5,borderBottom:`1px solid ${E.border}`,background:E.tabBg}}>
+      {Object.entries(EXT_PROFILES).map(([k,p])=><button key={k} onClick={()=>pick(k)} style={{padding:"6px 12px",borderRadius:7,border:"none",background:platform===k?`${p.color}22`:"transparent",color:platform===k?p.color:E.text3,fontSize:11,fontWeight:platform===k?600:400,cursor:"pointer",display:"flex",alignItems:"center",gap:5,transition:"all .2s",fontFamily:"inherit",outline:platform===k?`1px solid ${p.color}44`:"none"}}>{pIcons[p.platform]}{p.platform}</button>)}
+    </div>
+
+    {/* Main */}
+    <div style={{display:"flex",height:"calc(100vh - 110px)"}}>
+      {/* Fake Browser */}
+      <div style={{flex:1,overflow:"auto"}}>
+        {!platform?<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:14,padding:36}}>
+          <div style={{width:56,height:56,borderRadius:16,background:isDark?"linear-gradient(135deg,#1E3A5F,#2563EB)":"linear-gradient(135deg,#DBEAFE,#93C5FD)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>🔍</div>
+          <h2 style={{fontSize:18,fontWeight:600,color:E.text}}>Select a Platform to Begin</h2>
+          <p style={{fontSize:12,color:E.text3,maxWidth:400,textAlign:"center",lineHeight:1.6}}>Choose a platform tab above to simulate visiting a candidate profile page.</p>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:10}}>
+            {["linkedin","github","indeed","xing"].map(k=><button key={k} onClick={()=>pick(k)} style={{padding:"9px 16px",borderRadius:10,background:E.btnGhostBg,border:`1px solid ${E.border2}`,color:E.text2,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>{pIcons[EXT_PROFILES[k].platform]} {EXT_PROFILES[k].name}</button>)}
+          </div>
+        </div>:<div style={{height:"100%",overflow:"auto",animation:"fadeIn .3s"}}>
+          {/* Browser chrome */}
+          <div style={{padding:"6px 12px",background:E.chromeBg,borderBottom:`1px solid ${E.chromeBorder}`,display:"flex",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",gap:4}}>{["#EF4444","#F59E0B","#10B981"].map((c,i)=><div key={i} style={{width:9,height:9,borderRadius:5,background:c}}/>)}</div>
+            <div style={{flex:1,padding:"3px 10px",borderRadius:5,background:E.chromeUrlBg,border:`1px solid ${E.chromeBorder}`,display:"flex",alignItems:"center",gap:5}}>
+              <span style={{fontSize:8,color:"#10B981"}}>🔒</span>
+              <span style={{fontSize:10,color:E.text3,fontFamily:"'JetBrains Mono',monospace"}}>https://{EXT_PROFILES[platform].url}</span>
+            </div>
+            <button onClick={open} style={{width:28,height:28,borderRadius:7,border:"none",background:extState==="closed"?"linear-gradient(135deg,#3B82F6,#8B5CF6)":"rgba(59,130,246,0.2)",color:"#fff",fontSize:10,fontWeight:700,cursor:"pointer",position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}} title="Activate AI Talent Scout">
+              AI{extState==="closed"&&<div style={{position:"absolute",top:-2,right:-2,width:8,height:8,borderRadius:4,background:"#10B981",border:`2px solid ${E.bg2}`,animation:"pulse 2s infinite"}}/>}
+            </button>
+          </div>
+          {/* Profile page content */}
+          {(()=>{const d=EXT_PROFILES[platform];return <div style={{padding:"18px 24px",maxWidth:600}}>
+            <div style={{height:80,borderRadius:10,marginBottom:-20,background:`linear-gradient(135deg,${d.color}44,${d.color}22)`,border:`1px solid ${d.color}33`}}/>
+            <div style={{display:"flex",gap:12,alignItems:"flex-end",marginBottom:16,paddingLeft:12}}>
+              <div style={{width:64,height:64,borderRadius:12,background:`linear-gradient(135deg,${d.color}55,${d.color}99)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff",border:E.profileBorder}}>{d.name.split(" ").map(n=>n[0]).join("")}</div>
+              <div style={{paddingBottom:3}}><h1 style={{fontSize:18,fontWeight:700,color:E.text,margin:0}}>{d.name}</h1><p style={{fontSize:12,color:E.text2,margin:"1px 0 0"}}>{d.title}</p><p style={{fontSize:10,color:E.text3,margin:"1px 0 0"}}>{d.company} · {d.location}</p></div>
+            </div>
+            {[{l:"About",c:d.summary},{l:"Experience",c:`${d.title} at ${d.company} · ${d.experience}`},{l:"Education",c:d.education}].map(s=><div key={s.l} style={{padding:12,borderRadius:9,marginBottom:10,background:E.sectionBg,border:`1px solid ${E.border}`}}><h3 style={{fontSize:12,fontWeight:600,color:E.text2,margin:"0 0 5px"}}>{s.l}</h3><p style={{fontSize:11,color:E.text3,lineHeight:1.5,margin:0}}>{s.c}</p></div>)}
+            <div style={{padding:12,borderRadius:9,background:E.sectionBg,border:`1px solid ${E.border}`}}><h3 style={{fontSize:12,fontWeight:600,color:E.text2,margin:"0 0 6px"}}>Skills</h3><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{d.skills.map(s=><span key={s} style={{padding:"3px 9px",borderRadius:14,background:E.skillBg,border:`1px solid ${E.skillBorder}`,color:E.skillColor,fontSize:10}}>{s}</span>)}</div></div>
+          </div>})()}
+        </div>}
+      </div>
+
+      {/* Extension Sidebar */}
+      {extState!=="closed"&&<div style={{width:340,borderLeft:`1px solid ${E.sidebarBorder}`,background:isDark?E.sidebarBg:E.bg2,display:"flex",flexDirection:"column",overflow:"hidden",animation:"slideIn .35s cubic-bezier(.16,1,.3,1)",boxShadow:isDark?"-4px 0 24px rgba(0,0,0,0.3)":"-4px 0 24px rgba(0,0,0,0.06)"}}>
+        <div style={{padding:"10px 12px",borderBottom:`1px solid ${E.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:isDark?"rgba(0,0,0,0.2)":E.bg3}}>
+          <div style={{display:"flex",alignItems:"center",gap:7}}><div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#3B82F6,#8B5CF6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>AI</div><span style={{fontSize:12,fontWeight:600,color:E.text}}>Talent Scout</span></div>
+          <button onClick={reset} style={{width:24,height:24,borderRadius:5,border:"none",background:E.btnGhostBg,color:E.text3,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+        <div style={{flex:1,overflow:"auto"}}>
+          {/* PARSING */}
+          {extState==="parsing"&&<div style={{padding:18,display:"flex",flexDirection:"column",alignItems:"center",gap:12,marginTop:40}}>
+            <div style={{width:40,height:40,borderRadius:9,border:"3px solid rgba(59,130,246,0.2)",borderTopColor:"#3B82F6",animation:"spin .8s linear infinite"}}/>
+            <div style={{textAlign:"center"}}><div style={{fontSize:12,fontWeight:600,color:E.text}}>Parsing Profile</div><div style={{fontSize:10,color:E.text3}}>Extracting from {EXT_PROFILES[platform]?.platform}…</div></div>
+            <div style={{width:"75%",height:3,borderRadius:2,background:E.progressBg,overflow:"hidden"}}><div style={{width:`${parseProgress}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#3B82F6,#8B5CF6)",transition:"width .1s"}}/></div>
+          </div>}
+
+          {/* CAPTURE FORM */}
+          {extState==="capture"&&!showDup&&!success&&profile&&<div style={{padding:12}}>
+            {/* Card */}
+            <div style={{padding:10,borderRadius:9,marginBottom:10,background:`linear-gradient(135deg,${profile.color}11,${profile.color}08)`,border:`1px solid ${profile.color}33`}}>
+              <div style={{display:"flex",gap:9,alignItems:"flex-start"}}>
+                <div style={{width:38,height:38,borderRadius:8,background:`${profile.color}22`,color:profile.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{profile.name.split(" ").map(n=>n[0]).join("")}</div>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:E.text}}>{profile.name}</div><div style={{fontSize:10,color:E.text2}}>{profile.title}</div><div style={{fontSize:9,color:E.text3,marginTop:1}}>{profile.company} · {profile.location}</div></div>
+                <span style={{padding:"2px 6px",borderRadius:4,background:`${profile.color}22`,color:profile.color,fontSize:8,fontWeight:600}}>{profile.platform}</span>
+              </div>
+              <div style={{marginTop:8,paddingTop:7,borderTop:`1px solid ${E.divider}`,display:"flex",gap:4,flexWrap:"wrap"}}>
+                <span style={{padding:"2px 6px",borderRadius:4,background:E.seniorityBg,color:E.seniorityColor,fontSize:9,fontWeight:600}}>🎯 {profile.seniority}</span>
+                <span style={{padding:"2px 6px",borderRadius:4,background:E.expBg,color:E.expColor,fontSize:9,fontWeight:600}}>⏱ {profile.experience}</span>
+                {matchScore&&<span style={{padding:"2px 6px",borderRadius:4,background:`${scC(matchScore)}22`,color:scC(matchScore),fontSize:9,fontWeight:600}}>Match: {matchScore}%</span>}
+                {computing&&<span style={{padding:"2px 6px",borderRadius:4,background:E.computingBg,color:E.computingColor,fontSize:9}}>Computing…</span>}
+              </div>
+              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginTop:5}}>{profile.skills.slice(0,5).map(s=><span key={s} style={{padding:"1px 5px",borderRadius:3,background:E.skillBg,border:`1px solid ${E.skillBorder}`,color:E.text2,fontSize:8}}>{s}</span>)}{profile.skills.length>5&&<span style={{fontSize:8,color:E.text4}}>+{profile.skills.length-5}</span>}</div>
+            </div>
+
+            {/* Editable fields */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:E.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:5}}>Parsed Data <span style={{fontWeight:400,textTransform:"none"}}>(click to edit)</span></div>
+              {[{k:"name",l:"Name"},{k:"title",l:"Title"},{k:"company",l:"Company"},{k:"location",l:"Location"},{k:"email",l:"Email"}].map(({k,l})=><div key={k} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,padding:"4px 8px",borderRadius:6,background:editField===k?E.guideBg:E.cardBg,border:`1px solid ${editField===k?E.guideBorder:E.cardBorder}`,cursor:"pointer"}} onClick={()=>setEditField(k)}>
+                <span style={{width:46,fontSize:8,color:E.text4,fontWeight:600,flexShrink:0}}>{l}</span>
+                {editField===k?<input value={editVals[k]||""} onChange={e=>setEditVals({...editVals,[k]:e.target.value})} onBlur={()=>{setProfile({...profile,[k]:editVals[k]});setEditField(null);}} autoFocus style={{flex:1,background:"transparent",border:"none",outline:"none",color:E.text,fontSize:10,fontFamily:"inherit",padding:0}}/>:<span style={{flex:1,fontSize:10,color:editVals[k]?E.text2:E.text4}}>{editVals[k]||"—"}</span>}
+              </div>)}
+            </div>
+
+            {/* Job */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:E.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:5}}>Assign to Job</div>
+              <div style={{position:"relative"}}>
+                <button onClick={()=>{setShowJobDD(!showJobDD);setShowPoolDD(false);}} style={{width:"100%",padding:"6px 9px",borderRadius:6,background:E.inputBg,border:`1px solid ${showJobDD?E.guideBorder:E.inputBorder}`,color:selJob?E.text:E.text4,fontSize:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit",display:"flex",justifyContent:"space-between"}}>
+                  <span>{selJob?JOBS.find(j=>j.id===selJob)?.title:"Select a job (optional)"}</span><span style={{color:E.text4,fontSize:8}}>▾</span>
+                </button>
+                {showJobDD&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:50,marginTop:2,borderRadius:8,overflow:"hidden",background:E.dropdownBg,border:`1px solid ${E.border2}`,boxShadow:isDark?"0 12px 40px rgba(0,0,0,0.5)":"0 12px 40px rgba(0,0,0,0.12)"}}>
+                  <div style={{padding:5}}><input value={jobSearch} onChange={e=>setJobSearch(e.target.value)} placeholder="Search…" style={{width:"100%",padding:"5px 8px",borderRadius:4,background:E.inputBg,border:`1px solid ${E.inputBorder}`,color:E.text,fontSize:10,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/></div>
+                  <div style={{maxHeight:140,overflow:"auto"}}>
+                    <button onClick={()=>{setSelJob(null);setMatchScore(null);setShowJobDD(false);}} style={{width:"100%",padding:"6px 9px",border:"none",background:!selJob?E.guideBg:"transparent",color:E.text2,fontSize:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>No job — pool only</button>
+                    {fJobs.map(j=><button key={j.id} onClick={()=>doMatch(j.id)} style={{width:"100%",padding:"6px 9px",border:"none",background:selJob===j.id?E.guideBg:"transparent",color:E.text,fontSize:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}><div style={{fontWeight:500}}>{j.title}</div><div style={{fontSize:8,color:E.text3}}>{j.dept} · {j.location}</div></button>)}
+                  </div>
+                </div>}
+              </div>
+              {matchScore&&selJob&&<div style={{marginTop:6,padding:"6px 9px",borderRadius:6,background:`${scC(matchScore)}11`,border:`1px solid ${scC(matchScore)}33`,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:30,height:30,borderRadius:"50%",border:`3px solid ${scC(matchScore)}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:scC(matchScore)}}>{matchScore}</div>
+                <div><div style={{fontSize:9,fontWeight:600,color:scC(matchScore)}}>{matchScore>=80?"Strong":matchScore>=60?"Moderate":"Weak"} Match</div><div style={{fontSize:8,color:E.text3}}>for {JOBS.find(j=>j.id===selJob)?.title}</div></div>
+              </div>}
+            </div>
+
+            {/* Pool */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:E.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:5}}>Talent Pool(s)</div>
+              <button onClick={()=>{setShowPoolDD(!showPoolDD);setShowJobDD(false);}} style={{width:"100%",padding:"6px 9px",borderRadius:6,background:E.inputBg,border:`1px solid ${showPoolDD?E.existBorder:E.inputBorder}`,color:selPools.length?E.text:E.text4,fontSize:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
+                {selPools.length?selPools.map(pid=>POOLS.find(p=>p.id===pid)?.name).join(", "):"Select pools (optional)"}
+              </button>
+              {showPoolDD&&<div style={{marginTop:2,borderRadius:8,overflow:"hidden",background:E.dropdownBg,border:`1px solid ${E.border2}`,boxShadow:isDark?"0 12px 40px rgba(0,0,0,0.5)":"0 12px 40px rgba(0,0,0,0.12)"}}>
+                {POOLS.map(p=><button key={p.id} onClick={()=>togPool(p.id)} style={{width:"100%",padding:"6px 9px",border:"none",background:selPools.includes(p.id)?E.existBg:"transparent",color:E.text,fontSize:10,cursor:"pointer",textAlign:"left",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:13,height:13,borderRadius:3,border:`2px solid ${selPools.includes(p.id)?E.poolCheckActive:E.border2}`,background:selPools.includes(p.id)?E.poolCheckActive:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff"}}>{selPools.includes(p.id)&&"✓"}</span>
+                  {p.name}<span style={{marginLeft:"auto",fontSize:8,color:E.text4}}>{p.count}</span>
+                </button>)}
+                <div style={{padding:5}}><button onClick={()=>setShowPoolDD(false)} style={{width:"100%",padding:"4px",borderRadius:4,border:"none",background:E.poolDoneBg,color:E.poolDoneColor,fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>Done</button></div>
+              </div>}
+            </div>
+
+            {/* Tags + Notes */}
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:9,color:E.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Tags</div>
+              <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:tags.length?4:0}}>{tags.map(t=><span key={t} style={{padding:"2px 6px",borderRadius:3,background:E.tagBg,color:E.tagColor,fontSize:9,display:"flex",alignItems:"center",gap:2}}>{t}<span onClick={()=>setTags(tags.filter(x=>x!==t))} style={{cursor:"pointer",opacity:.6}}>×</span></span>)}</div>
+              <div style={{display:"flex",gap:3}}><input value={tagIn} onChange={e=>setTagIn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag()} placeholder="Add tag…" style={{flex:1,padding:"4px 7px",borderRadius:4,background:E.inputBg,border:`1px solid ${E.inputBorder}`,color:E.text,fontSize:9,outline:"none",fontFamily:"inherit"}}/><button onClick={addTag} style={{padding:"4px 7px",borderRadius:4,border:`1px solid ${E.border2}`,background:E.btnGhostBg,color:E.text2,fontSize:9,cursor:"pointer"}}>+</button></div>
+            </div>
+            <div style={{marginBottom:10}}><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Recruiter notes…" rows={2} style={{width:"100%",padding:"6px 8px",borderRadius:6,background:E.inputBg,border:`1px solid ${E.inputBorder}`,color:E.text,fontSize:10,outline:"none",resize:"vertical",fontFamily:"inherit",boxSizing:"border-box"}}/></div>
+
+            {/* GDPR */}
+            <div style={{padding:"6px 9px",borderRadius:6,marginBottom:10,background:E.gdprBg,border:`1px solid ${E.gdprBorder}`,display:"flex",alignItems:"flex-start",gap:6}}>
+              <span style={{fontSize:12,flexShrink:0}}>🔒</span>
+              <div><div style={{fontSize:8,fontWeight:600,color:E.gdprColor,marginBottom:1}}>GDPR / FADP Compliance</div><div style={{fontSize:8,color:E.gdprText,lineHeight:1.4}}>Legitimate Interest. Privacy notice within 30 days. <span onClick={()=>setGdprOpen(!gdprOpen)} style={{color:E.gdprColor,cursor:"pointer"}}>{gdprOpen?"Hide ▴":"Details ▾"}</span></div>
+                {gdprOpen&&<div style={{fontSize:8,color:E.gdprText,lineHeight:1.5,marginTop:4,paddingTop:4,borderTop:`1px solid ${E.gdprBorder}`}}>• Audit log on import<br/>• Auto-archive 6mo<br/>• Auto-delete 12mo<br/>• Erasure on request</div>}
+              </div>
+            </div>
+
+            {/* Import button */}
+            <button onClick={doImport} disabled={importing} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",background:importing?E.computingBg:"linear-gradient(135deg,#3B82F6,#6366F1)",color:importing?E.computingColor:"#fff",fontSize:12,fontWeight:600,cursor:importing?"wait":"pointer",fontFamily:"inherit",boxShadow:importing?"none":"0 4px 12px rgba(59,130,246,0.3)"}}>{importing?"Processing…":"Add to Platform →"}</button>
+
+            {importing&&<div style={{marginTop:8}}>{[{l:"Checking duplicates…",d:consent>=1},{l:"Recording audit log…",d:consent>=2},{l:"Creating record…",d:consent>=3}].map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"2px 0",opacity:consent>=i?1:.3}}><div style={{width:13,height:13,borderRadius:3,background:s.d?E.checkDone:E.checkBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#fff"}}>{s.d?"✓":""}</div><span style={{fontSize:9,color:s.d?E.checkDoneText:E.text3}}>{s.l}</span></div>)}</div>}
+          </div>}
+
+          {/* DUPLICATE */}
+          {showDup&&!success&&<div style={{padding:12}}>
+            <div style={{padding:10,borderRadius:9,background:E.dupBg,border:`1px solid ${E.dupBorder}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}><span style={{fontSize:15}}>⚠️</span><span style={{fontSize:12,fontWeight:600,color:E.dupColor}}>Possible Duplicate</span></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+                <div style={{padding:7,borderRadius:6,background:E.newBg,border:`1px solid ${E.newBorder}`}}><div style={{fontSize:8,color:E.newColor,fontWeight:600,marginBottom:3}}>NEW</div><div style={{fontSize:10,fontWeight:600,color:E.text}}>{profile?.name}</div><div style={{fontSize:8,color:E.text2}}>{profile?.title}</div><div style={{fontSize:8,color:E.text3}}>{profile?.company}</div></div>
+                <div style={{padding:7,borderRadius:6,background:E.existBg,border:`1px solid ${E.existBorder}`}}><div style={{fontSize:8,color:E.existColor,fontWeight:600,marginBottom:3}}>EXISTING</div><div style={{fontSize:10,fontWeight:600,color:E.text}}>{EXT_DUPLICATE.name}</div><div style={{fontSize:8,color:E.text2}}>{EXT_DUPLICATE.title}</div><div style={{fontSize:8,color:E.text3}}>{EXT_DUPLICATE.stage}</div></div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                <button onClick={()=>dupAction("view")} style={{padding:"7px 9px",borderRadius:6,border:`1px solid ${E.viewBtnBorder}`,background:E.viewBtnBg,color:E.viewBtnColor,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>👁 View Existing in ATS</button>
+                <button onClick={()=>dupAction("merge")} style={{padding:"7px 9px",borderRadius:6,border:`1px solid ${E.mergeBtnBorder}`,background:E.mergeBtnBg,color:E.mergeBtnColor,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>🔄 Merge & Update</button>
+                <button onClick={()=>dupAction("create")} style={{padding:"7px 9px",borderRadius:6,border:`1px solid ${E.border2}`,background:E.btnGhostBg,color:E.text2,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>＋ Create Separate Record</button>
+              </div>
+            </div>
+          </div>}
+
+          {/* SUCCESS — ATS integration buttons */}
+          {success&&<div style={{padding:12}}>
+            <div style={{padding:18,borderRadius:10,textAlign:"center",background:E.successBg,border:`1px solid ${E.successBorder}`}}>
+              <div style={{width:46,height:46,borderRadius:12,margin:"0 auto 10px",background:E.successBg,border:`2px solid ${E.successBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>✓</div>
+              <div style={{fontSize:14,fontWeight:600,color:E.successColor,marginBottom:2}}>Added to Platform</div>
+              <div style={{fontSize:11,color:E.successName,marginBottom:2}}>{profile?.name}</div>
+              <div style={{fontSize:9,color:E.text3,marginBottom:12}}>{selJob?JOBS.find(j=>j.id===selJob)?.title:"Candidate Pool"}</div>
+              <div style={{padding:"6px 9px",borderRadius:6,marginBottom:12,background:E.gdprBg,border:`1px solid ${E.gdprBorder}`,textAlign:"left"}}>
+                <div style={{fontSize:8,fontWeight:600,color:E.gdprColor,marginBottom:2}}>GDPR Compliance</div>
+                {["✓ Audit log recorded","✓ Legitimate Interest documented","✓ Privacy notice task (30 days)","✓ Retention policy applied"].map((t,i)=><div key={i} style={{fontSize:8,color:E.gdprText,padding:"1px 0"}}>{t}</div>)}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <button onClick={()=>onViewInATS(imported)} style={{padding:"8px",borderRadius:6,border:"none",background:"linear-gradient(135deg,#3B82F6,#6366F1)",color:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>◎ View in AI Sourcing Hub →</button>
+                <button onClick={()=>onStartOutreach(imported)} style={{padding:"8px",borderRadius:6,border:`1px solid ${E.outreachBtnBorder}`,background:E.outreachBtnBg,color:E.outreachBtnColor,fontSize:11,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>✉ Start Outreach in Hub</button>
+                <button onClick={()=>{reset();setPlatform(null);setStep(0);}} style={{padding:"8px",borderRadius:6,border:`1px solid ${E.border2}`,background:"transparent",color:E.text3,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Add Another Candidate</button>
+              </div>
+            </div>
+          </div>}
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ═════════════════════════════════════════════════
+   SECTION 3: ATS HUB COMPONENTS
+═════════════════════════════════════════════════ */
+
+function HubSidebar({page,setPage,credits,isDark,toggleTheme,onBack,onExtension,T}){
+  const nav=[{id:"dashboard",ico:"◉",l:"Dashboard"},{id:"sourcing",ico:"◎",l:"AI Sourcing"},{id:"pipeline",ico:"⟳",l:"Pipelines"},{id:"pool",ico:"❑",l:"Candidate Pool"},{id:"outreach",ico:"✉",l:"Outreach"},{id:"credits",ico:"⬡",l:"Credits"}];
+  return <div style={{width:200,background:T.bg2,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0,height:"100vh"}}>
+    <div style={{padding:"14px 13px 10px",borderBottom:`1px solid ${T.border}`}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:17,background:`linear-gradient(120deg,${T.teal},${T.blue})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>TalentOS</div>
+      <div style={{fontSize:10,color:T.text3,marginTop:1}}>AI Hiring Platform</div>
+    </div>
+    <div style={{padding:"9px 11px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:8}}>
+      <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal},${T.blue})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:10}}>SK</div>
+      <div><div style={{color:T.text,fontSize:11,fontWeight:600}}>Sarah Kessler</div><div style={{color:T.text3,fontSize:9}}>HR Manager · Novartis</div></div>
+    </div>
+    <nav style={{flex:1,padding:6,overflowY:"auto"}}>
+      {nav.map(it=><button key={it.id} onClick={()=>setPage(it.id)} className={`nav-item${page===it.id?" active":""}`}><span style={{fontSize:12}}>{it.ico}</span><span>{it.l}</span>{it.id==="credits"&&<span style={{marginLeft:"auto",fontSize:10,fontWeight:700,color:T.teal,background:T.tealDim,borderRadius:10,padding:"1px 6px"}}>{credits}</span>}</button>)}
+      <div style={{height:1,background:T.border,margin:"8px 4px"}}/>
+      <button onClick={onExtension} className="nav-item" style={{color:T.violet||"#6D28D9"}}><span style={{fontSize:12}}>🧩</span><span style={{fontWeight:600}}>Extension</span></button>
+    </nav>
+    <div style={{padding:"9px 11px",borderTop:`1px solid ${T.border}`,display:"flex",flexDirection:"column",gap:5}}>
+      <button onClick={toggleTheme} style={{width:"100%",padding:"6px 9px",background:T.surface2,border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}><span style={{fontSize:12}}>{isDark?"☀️":"🌙"}</span><span style={{fontSize:10,fontWeight:600,color:T.text2}}>{isDark?"Light":"Dark"}</span></button>
+      <button onClick={onBack} style={{width:"100%",padding:"6px 9px",background:T.surface2,border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontFamily:"inherit"}}><span style={{fontSize:10}}>←</span><span style={{fontSize:10,color:T.text3}}>Launcher</span></button>
+    </div>
+  </div>;
+}
+
+function HubTopbar({page,credits,poolCount,pipeCount,extCount,T}){
+  const titles={dashboard:"Dashboard",sourcing:"AI Sourcing Hub",pipeline:"Job Pipelines",pool:"Candidate Pool",outreach:"Outreach",credits:"Credits"};
+  return <div style={{padding:"11px 22px",borderBottom:`1px solid ${T.border}`,background:T.bg2,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <h1 className="htitle" style={{fontSize:16}}>{titles[page]||page}</h1>
+    <div style={{display:"flex",gap:12,fontSize:11}}>
+      {[["⬡",credits,T.teal,"Credits"],["❑",poolCount,T.green,"Pool"],["⟳",pipeCount,T.violet||"#6D28D9","Pipeline"],["🧩",extCount,AVC[1],"Ext"]].map(([ico,v,c,l])=><div key={l} style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:12}}>{ico}</span><span style={{fontWeight:700,color:c}}>{v}</span><span style={{color:T.text3,fontSize:10}}>{l}</span></div>)}
+    </div>
+  </div>;
+}
+
+/* DASHBOARD */
+function HubDashboard({credits,poolCount,pipeCount,extCandidates,onNav,onExtension,T}){
+  return <div style={{flex:1,overflowY:"auto",padding:"22px 28px",background:T.bg}}>
+    <div style={{maxWidth:920,margin:"0 auto"}}>
+      <div style={{background:`linear-gradient(135deg,${T.tealDim},${T.blueDim})`,border:`1px solid ${T.tealBrd}`,borderRadius:15,padding:"22px 26px",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+          <div><h1 className="htitle" style={{fontSize:20,marginBottom:4}}>Welcome back, Sarah</h1><p style={{fontSize:12,color:T.text2,lineHeight:1.6,maxWidth:420}}>Track your pipeline, outreach and compliance. Extension-sourced candidates appear automatically.</p></div>
+          <div style={{display:"flex",gap:8}}><button className="bp" onClick={()=>onNav("sourcing")} style={{padding:"8px 16px",fontSize:12,fontWeight:700}}>◎ Source</button><button className="bs" onClick={onExtension} style={{padding:"8px 12px",fontSize:12,fontWeight:600}}>🧩 Extension</button></div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+        {[["⬡ Credits",credits,T.teal],["❑ Pool",poolCount,T.green],["⟳ Pipeline",pipeCount,T.violet||"#6D28D9"],["🧩 Extension",extCandidates.length,AVC[1]]].map(([l,v,c])=><div key={l} style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:10,padding:"13px",boxShadow:`0 1px 4px ${T.shadow}`}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:21,color:c,marginBottom:1}}>{v}</div>
+          <div style={{fontSize:11,color:T.text2,fontWeight:600}}>{l}</div>
+        </div>)}
+      </div>
+      {extCandidates.length>0&&<div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:15}}>🧩</span><h3 className="htitle" style={{fontSize:14}}>Recently Sourced via Extension</h3><span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`,fontSize:10}}>{extCandidates.length} new</span></div><button className="bt" onClick={()=>onNav("pool")} style={{padding:"4px 10px",fontSize:10}}>View All →</button></div>
+        {extCandidates.slice(0,4).map((c,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 0",borderTop:i?`1px solid ${T.border}`:"none"}}>
+          <Av idx={c.av||0} size={30} name={c.name} T={T}/><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.text}}>{c.name}</div><div style={{fontSize:10,color:T.text3}}>{c.title}</div></div>
+          <span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`,fontSize:9}}>🧩 {c.sourcePlatform||"Ext"}</span>
+          {c.assignedJob?<span className="tag" style={{background:T.blueDim,color:T.blue,border:`1px solid ${T.blue}25`,fontSize:9}}>{JOBS.find(j=>String(j.id)===String(c.assignedJob))?.title||"Pipeline"}</span>:<span className="tag" style={{background:T.greenDim,color:T.green,border:`1px solid ${T.green}25`,fontSize:9}}>Pool</span>}
+          <ScB score={c.score||80} T={T}/>
+        </div>)}
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11}}>
+        {[{ico:"◎",t:"AI Sourcing Hub",d:"Search millions of profiles with AI",a:()=>onNav("sourcing"),c:T.teal},{ico:"🧩",t:"Browser Extension",d:"Capture from LinkedIn, GitHub & more",a:onExtension,c:T.violet||"#6D28D9"},{ico:"✉",t:"Outreach",d:"Contact and manage candidates",a:()=>onNav("outreach"),c:T.blue}].map(q=><button key={q.t} onClick={q.a} style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:11,padding:"16px 14px",cursor:"pointer",textAlign:"left",transition:"all .2s",fontFamily:"inherit",boxShadow:`0 1px 4px ${T.shadow}`}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=`${q.c}44`;e.currentTarget.style.transform="translateY(-2px)";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="none";}}>
+          <div style={{fontSize:20,marginBottom:8}}>{q.ico}</div>
+          <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:3,fontFamily:"'Playfair Display',serif"}}>{q.t}</div>
+          <div style={{fontSize:11,color:T.text3,lineHeight:1.5}}>{q.d}</div>
+        </button>)}
+      </div>
+    </div>
+  </div>;
+}
+
+/* CANDIDATE POOL */
+function HubPool({candidates,onProfile,T}){
+  const [search,setSearch]=useState("");
+  const [srcFilter,setSrcFilter]=useState("all");
+  const filtered=candidates.filter(c=>(c.name||"").toLowerCase().includes(search.toLowerCase())||(c.title||"").toLowerCase().includes(search.toLowerCase())).filter(c=>srcFilter==="all"||(srcFilter==="extension"?c.source==="extension":c.source!=="extension"));
+  const extCount=candidates.filter(c=>c.source==="extension").length;
+  return <div style={{flex:1,overflowY:"auto",padding:"20px 24px",background:T.bg}}>
+    <div style={{maxWidth:1000,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}><div><h2 className="htitle" style={{fontSize:18,marginBottom:2}}>Candidate Pool</h2><p style={{fontSize:11,color:T.text3}}>{candidates.length} total · {extCount} from extension</p></div></div>
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        <div style={{position:"relative",flex:1}}><span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.text3,fontSize:12}}>🔍</span><input className="inp" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{paddingLeft:30,fontSize:12}}/></div>
+        <select className="inp" value={srcFilter} onChange={e=>setSrcFilter(e.target.value)} style={{width:180,fontSize:12}}><option value="all">All Sources</option><option value="extension">🧩 Extension Only</option><option value="hub">Hub Only</option></select>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+        {[["Total",candidates.length,T.teal],["Hub",candidates.length-extCount,T.blue],["Extension",extCount,T.violet||"#6D28D9"],["Avg Score",Math.round(candidates.reduce((a,c)=>a+(c.score||75),0)/Math.max(candidates.length,1))+"%",T.green]].map(([l,v,c])=><div key={l} style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:9,padding:"11px 12px"}}><div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:19,color:c}}>{v}</div><div style={{fontSize:10,color:T.text3}}>{l}</div></div>)}
+      </div>
+      <div style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:11,overflow:"hidden"}}>
+        <div style={{display:"grid",gridTemplateColumns:"36px 1fr 80px 100px 70px 110px 50px",gap:7,padding:"8px 12px",background:T.bg3,borderBottom:`1px solid ${T.border}`}}>{["","Candidate","Score","Location","Exp","Source",""].map((h,i)=><div key={i} style={{fontSize:9,fontWeight:700,color:T.text3,textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}</div>
+        {filtered.length===0?<div style={{padding:22,textAlign:"center",fontSize:12,color:T.text3}}>No candidates match filters</div>:filtered.map((c,i)=><div key={c.id||i} style={{display:"grid",gridTemplateColumns:"36px 1fr 80px 100px 70px 110px 50px",gap:7,padding:"9px 12px",borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none",alignItems:"center",cursor:"pointer",transition:"background .12s"}} onClick={()=>onProfile(c)} onMouseEnter={e=>e.currentTarget.style.background=T.cardHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+          <Av idx={c.av||0} size={28} name={c.name} T={T}/>
+          <div><div style={{fontSize:12,fontWeight:700,color:T.text,fontFamily:"'Playfair Display',serif"}}>{c.name}</div><div style={{fontSize:10,color:T.text3}}>{c.title}</div></div>
+          <ScB score={c.score||75} T={T}/>
+          <div style={{fontSize:10,color:T.text3}}>📍 {(c.loc||c.location||"").split(",")[0]}</div>
+          <div style={{fontSize:10,color:T.text3}}>{c.yoe||"–"} yrs</div>
+          <div>{c.source==="extension"?<span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`,fontSize:9}}>🧩 {c.sourcePlatform||"Ext"}</span>:<span className="tag" style={{background:T.blueDim,color:T.blue,border:`1px solid ${T.blue}25`,fontSize:9}}>Hub</span>}</div>
+          <button onClick={e=>{e.stopPropagation();onProfile(c);}} className="bt" style={{padding:"3px 7px",fontSize:9,borderRadius:5}}>View</button>
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+
+/* PIPELINE */
+function HubPipeline({candidates,T}){
+  const [activeJob,setActiveJob]=useState(JOBS[0].id);
+  const cands=candidates.filter(c=>String(c.assignedJob)===String(activeJob));
+  const STAGES=["Sourced","Contacted","Screening","Interview","Offer"];
+  const sColors=[T.teal,T.blue,T.violet||"#6D28D9",T.amber,T.green];
+  return <div style={{flex:1,display:"flex",overflow:"hidden",background:T.bg}}>
+    <div style={{width:200,background:T.bg2,borderRight:`1px solid ${T.border}`,padding:"10px 7px",overflowY:"auto",flexShrink:0}}>
+      <div style={{fontSize:9,fontWeight:700,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,padding:"0 4px"}}>Open Roles</div>
+      {JOBS.map(j=><button key={j.id} onClick={()=>setActiveJob(j.id)} style={{width:"100%",padding:"9px 9px",borderRadius:7,border:`1px solid ${activeJob===j.id?T.tealBrd:T.border}`,background:activeJob===j.id?T.tealDim:T.surface,cursor:"pointer",textAlign:"left",marginBottom:4,fontFamily:"inherit"}}>
+        <div style={{fontSize:11,fontWeight:700,color:activeJob===j.id?T.teal:T.text,fontFamily:"'Playfair Display',serif"}}>{j.title}</div>
+        <div style={{fontSize:9,color:T.text3}}>{j.dept} · {j.location}</div>
+      </button>)}
+    </div>
+    <div style={{flex:1,overflowX:"auto",padding:16}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}><h2 className="htitle" style={{fontSize:16}}>{JOBS.find(j=>j.id===activeJob)?.title}</h2><span className="tag" style={{background:T.tealDim,color:T.teal,border:`1px solid ${T.tealBrd}`,fontSize:10}}>{cands.length} candidates</span></div>
+      <div style={{display:"flex",gap:10,minWidth:STAGES.length*180}}>
+        {STAGES.map((stage,si)=>{
+          const sc=cands.filter((_,ci)=>ci%STAGES.length===si);
+          return <div key={stage} style={{flex:1,minWidth:160}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}><span style={{width:7,height:7,borderRadius:"50%",background:sColors[si]}}/><span style={{fontSize:12,fontWeight:700,color:T.text}}>{stage}</span><span style={{fontSize:10,color:T.text3}}>({sc.length})</span></div>
+            {sc.length===0?<div style={{padding:18,textAlign:"center",background:T.bg2,border:`1px dashed ${T.border}`,borderRadius:9,fontSize:11,color:T.text3}}>No candidates</div>:sc.map(c=><div key={c.id||c.name} style={{background:T.bg2,border:`1px solid ${T.border}`,borderRadius:9,padding:"10px 11px",marginBottom:7,cursor:"pointer",transition:"all .15s"}} className="c-hover">
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}><Av idx={c.av||0} size={26} name={c.name} T={T}/><div><div style={{fontSize:11,fontWeight:700,color:T.text,fontFamily:"'Playfair Display',serif"}}>{c.name}</div><div style={{fontSize:9,color:T.text3}}>{c.title}</div></div></div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                <ScB score={c.score||80} T={T}/>
+                {c.source==="extension"&&<span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`,fontSize:9}}>🧩 Ext</span>}
+              </div>
+            </div>)}
+          </div>;
+        })}
+      </div>
+    </div>
+  </div>;
+}
+
+/* OUTREACH */
+function HubOutreach({records,extCandidates,addToast,T}){
+  const [ors,setOrs]=useState(records);
+  const [sel,setSel]=useState(null);
+  const allRecs=[...ors,...extCandidates.filter(ec=>!ors.find(o=>o.candidateName===ec.name)).map((ec,i)=>({id:100+i,candidateId:ec.id,candidateName:ec.name,status:"Not Contacted",messages:[],_ext:true}))];
+  const statColors={"Not Contacted":T.text3,"Contacted":T.blue,"Responded":T.green,"Meeting Booked":T.teal};
+  return <div style={{flex:1,display:"flex",overflow:"hidden",background:T.bg}}>
+    <div style={{width:300,borderRight:`1px solid ${T.border}`,background:T.bg2,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"14px 16px",borderBottom:`1px solid ${T.border}`}}><h2 className="htitle" style={{fontSize:15,marginBottom:3}}>Outreach</h2><p style={{fontSize:11,color:T.text3}}>{allRecs.length} candidates in outreach</p></div>
+      <div style={{flex:1,overflowY:"auto"}}>
+        {allRecs.map(r=>{const c=HUB_PROFILES.find(p=>p.id===r.candidateId);const name=r.candidateName||(c?c.name:"Unknown");
+          return <div key={r.id} onClick={()=>setSel(r)} style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`,cursor:"pointer",background:sel?.id===r.id?T.tealDim:"transparent",transition:"background .12s"}} onMouseEnter={e=>{if(sel?.id!==r.id)e.currentTarget.style.background=T.cardHover;}} onMouseLeave={e=>{if(sel?.id!==r.id)e.currentTarget.style.background="transparent";}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <Av idx={(c?.av||0)} size={28} name={name} T={T}/>
+              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.text}}>{name}</div><div style={{fontSize:10,color:T.text3}}>{r.status}</div></div>
+              <span style={{width:7,height:7,borderRadius:"50%",background:statColors[r.status]||T.text3}}/>
+              {r._ext&&<span style={{fontSize:8,color:T.violet,fontWeight:700}}>🧩</span>}
+            </div>
+          </div>;})}
+      </div>
+    </div>
+    <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+      {sel?(()=>{const name=sel.candidateName||"Unknown";
+        return <div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><Av idx={0} size={40} name={name} T={T}/><div><h3 className="htitle" style={{fontSize:16}}>{name}</h3><div style={{display:"flex",gap:5,marginTop:3}}><span className="tag" style={{background:statColors[sel.status]+"18",color:statColors[sel.status],border:`1px solid ${statColors[sel.status]}30`}}>{sel.status}</span>{sel._ext&&<span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`,fontSize:10}}>🧩 Extension</span>}</div></div></div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:T.text,marginBottom:10}}>Message History</div>
+          {sel.messages.length===0?<div style={{padding:22,textAlign:"center",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:11}}><div style={{fontSize:22,marginBottom:6,opacity:.3}}>✉</div><div style={{fontSize:12,color:T.text3,marginBottom:8}}>No messages yet</div><button className="bp" onClick={()=>addToast(`Outreach composer opened for ${name}`,"info")} style={{padding:"7px 16px",fontSize:12}}>Send First Outreach</button></div>:
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>{sel.messages.map((m,i)=><div key={i} style={{background:T.bg2,border:`1px solid ${m.dir==="out"?T.tealBrd:T.border}`,borderRadius:10,padding:"12px 14px",marginLeft:m.dir==="in"?0:20,marginRight:m.dir==="in"?20:0}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}><div style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:6,height:6,borderRadius:"50%",background:m.dir==="out"?T.teal:T.blue}}/><span style={{fontSize:10,fontWeight:600,color:m.dir==="out"?T.teal:T.blue}}>{m.dir==="out"?"You":"Candidate"}</span></div><span style={{fontSize:9,color:T.text3}}>{m.date}</span></div>
+            <div style={{fontSize:11,color:T.text2,lineHeight:1.5}}>{m.preview}</div>
+          </div>)}</div>}
+        </div>;
+      })():<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",opacity:.5}}><div style={{fontSize:36,marginBottom:8}}>✉</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:T.text2}}>Select a candidate</div></div>}
+    </div>
+  </div>;
+}
+
+/* SOURCING PLACEHOLDER */
+function HubSourcing({onExtension,T}){
+  return <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:36,background:T.bg}}>
+    <div style={{fontSize:44,marginBottom:12,opacity:.18}}>◎</div>
+    <h2 className="htitle" style={{fontSize:19,marginBottom:6}}>AI Sourcing Hub</h2>
+    <p style={{fontSize:13,color:T.text3,textAlign:"center",maxWidth:400,lineHeight:1.6,marginBottom:16}}>Search millions of external profiles using AI. This module is fully functional in the standalone v5 simulator.</p>
+    <button className="bp" onClick={onExtension} style={{padding:"10px 22px",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:7}}>🧩 Try Browser Extension Instead</button>
+  </div>;
+}
+
+/* CREDITS PLACEHOLDER */
+function HubCredits({credits,T}){
+  return <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:36,background:T.bg}}>
+    <div style={{fontSize:44,marginBottom:12}}>⬡</div>
+    <h2 className="htitle" style={{fontSize:19,marginBottom:6}}>Credits: {credits}</h2>
+    <p style={{fontSize:13,color:T.text3,textAlign:"center",maxWidth:360,lineHeight:1.6}}>Credits are used for profile unlocks, AI interviews, and Smart Shortlists. Purchase more in the full platform.</p>
+  </div>;
+}
+
+/* PROFILE DETAIL MODAL */
+function ProfileModal({candidate,onClose,T}){
+  if(!candidate)return null;
+  const c=candidate;const isExt=c.source==="extension";
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",animation:"fadeIn .2s"}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:T.bg2,border:`1px solid ${T.border2}`,borderRadius:16,padding:"26px 30px",width:"min(520px,94vw)",maxHeight:"85vh",overflow:"auto",boxShadow:`0 24px 64px ${T.shadow2}`,animation:"popIn .25s ease"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}><Av idx={c.av||0} size={44} name={c.name} T={T}/><div><h3 className="htitle" style={{fontSize:17}}>{c.name}</h3><div style={{fontSize:12,color:T.text2}}>{c.title}</div></div></div>
+        <button onClick={onClose} className="bs" style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,borderRadius:7,padding:0}}>×</button>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        <ScB score={c.score||80} T={T}/>
+        {isExt&&<span className="tag" style={{background:T.violetDim,color:T.violet,border:`1px solid ${T.violet}30`}}>🧩 {c.sourcePlatform||"Extension"}</span>}
+        {!isExt&&<span className="tag" style={{background:T.blueDim,color:T.blue,border:`1px solid ${T.blue}25`}}>Hub Sourced</span>}
+        {c.assignedJob&&<span className="tag" style={{background:T.tealDim,color:T.teal,border:`1px solid ${T.tealBrd}`}}>{JOBS.find(j=>String(j.id)===String(c.assignedJob))?.title||"Pipeline"}</span>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+        {[["Location",c.loc||c.location||"—"],["Experience",(c.yoe||"—")+" years"],["Email",c.email||"—"],["Source",isExt?`Extension · ${c.sourcePlatform}`:(c.source||"Hub")]].map(([l,v])=><div key={l} style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 11px"}}><div style={{fontSize:9,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:2,fontWeight:600}}>{l}</div><div style={{fontSize:12,fontWeight:600,color:T.text,wordBreak:"break-all"}}>{v}</div></div>)}
+      </div>
+      {c.summary&&<div style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:14}}><div style={{fontSize:9,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:4,fontWeight:600}}>Summary</div><div style={{fontSize:12,color:T.text2,lineHeight:1.6}}>{c.summary}</div></div>}
+      {c.skills&&c.skills.length>0&&<div style={{marginBottom:14}}><div style={{fontSize:9,color:T.text3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:6,fontWeight:600}}>Skills</div><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{c.skills.map(s=><span key={s} className="tag" style={{background:T.tealDim,color:T.teal,border:`1px solid ${T.tealBrd}`}}>{s}</span>)}</div></div>}
+      {isExt&&c.gdprDeadline&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 12px",background:T.amberDim,border:`1px solid ${T.amber}28`,borderRadius:8,marginBottom:14}}><span style={{fontSize:13}}>🔒</span><div><div style={{fontSize:10,fontWeight:600,color:T.amber}}>GDPR Transparency Deadline</div><div style={{fontSize:11,color:T.text2}}>Privacy notice must be sent by {c.gdprDeadline}</div></div></div>}
+      {c.tags&&c.tags.length>0&&<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>{c.tags.map(t=><span key={t} className="tag" style={{background:T.blueDim,color:T.blue,border:`1px solid ${T.blue}25`}}>{t}</span>)}</div>}
+      {c.notes&&<div style={{background:T.bg3,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 11px"}}><div style={{fontSize:9,color:T.text3,fontWeight:600,marginBottom:3}}>RECRUITER NOTES</div><div style={{fontSize:11,color:T.text2}}>{c.notes}</div></div>}
+    </div>
+  </div>;
+}
+
+
+/* ═════════════════════════════════════════════════
+   SECTION 4: ROOT APP
+═════════════════════════════════════════════════ */
+export default function AppV6(){
+  const [isDark,setIsDark]=useState(false);
+  const T=isDark?DK:LT;
+  const [mode,setMode]=useState("launch"); // launch | hub | extension
+  const [hubPage,setHubPage]=useState("dashboard");
+  const [credits,setCredits]=useState(47);
+  const [toasts,setToasts]=useState([]);
+  const [selectedProfile,setSelectedProfile]=useState(null);
+
+  // Shared candidate stores
+  const [poolCandidates,setPoolCandidates]=useState(HUB_PROFILES.slice(0,3).map(p=>({...p,assignedJob:null})));
+  const [pipelineCandidates,setPipelineCandidates]=useState(HUB_PROFILES.slice(0,5).map((p,i)=>({...p,assignedJob:String(i<3?1:2)})));
+  const [extensionCandidates,setExtensionCandidates]=useState([]);
+  const [outreachRecords]=useState(INIT_OUTREACH);
+
+  function addToast(msg,type="info"){setToasts(ts=>[...ts,{id:Date.now(),msg,type}]);}
+  function rmToast(id){setToasts(ts=>ts.filter(x=>x.id!==id));}
+
+  // Extension → Hub callbacks
+  function onExtAddToPool(c){
+    setExtensionCandidates(ec=>[...ec,c]);
+    setPoolCandidates(pc=>[...pc,c]);
+    addToast(`🧩 ${c.name} added to Candidate Pool via Extension`,"success");
+  }
+  function onExtAddToPipeline(c){
+    setExtensionCandidates(ec=>[...ec,c]);
+    setPipelineCandidates(pc=>[...pc,c]);
+    if(!c.assignedJob){setPoolCandidates(pc=>[...pc,{...c,assignedJob:null}]);}
+    addToast(`🧩 ${c.name} added to Job Pipeline via Extension`,"success");
+  }
+  function onExtViewInATS(c){
+    setMode("hub");
+    if(c){setHubPage("pool");setTimeout(()=>setSelectedProfile(c),300);}
+    else{setHubPage("pool");}
+  }
+  function onExtStartOutreach(c){
+    setMode("hub");setHubPage("outreach");
+    addToast(`Outreach hub opened for ${c?.name||"candidate"}`,"info");
+  }
+
+  return <div style={{height:"100vh",overflow:"hidden"}}>
+    <style>{makeCSS(T)}</style>
+    <link href={FONTS_URL} rel="stylesheet"/>
+
+    {mode==="launch"&&<LaunchPage T={T} onLaunch={id=>{setMode(id);if(id==="hub")setHubPage("dashboard");}}/>}
+
+    {mode==="extension"&&<ExtensionApp
+      onBack={()=>setMode("launch")}
+      onAddToPool={onExtAddToPool}
+      onAddToPipeline={onExtAddToPipeline}
+      onViewInATS={onExtViewInATS}
+      onStartOutreach={onExtStartOutreach}
+      isDark={isDark}
+      toggleTheme={()=>setIsDark(d=>!d)}
+    />}
+
+    {mode==="hub"&&<div style={{display:"flex",height:"100vh",background:T.bg,overflow:"hidden"}}>
+      <HubSidebar page={hubPage} setPage={setHubPage} credits={credits} isDark={isDark} toggleTheme={()=>setIsDark(d=>!d)} onBack={()=>setMode("launch")} onExtension={()=>setMode("extension")} T={T}/>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <HubTopbar page={hubPage} credits={credits} poolCount={poolCandidates.length} pipeCount={pipelineCandidates.length} extCount={extensionCandidates.length} T={T}/>
+        <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+          {hubPage==="dashboard"&&<HubDashboard credits={credits} poolCount={poolCandidates.length} pipeCount={pipelineCandidates.length} extCandidates={extensionCandidates} onNav={setHubPage} onExtension={()=>setMode("extension")} T={T}/>}
+          {hubPage==="pool"&&<HubPool candidates={poolCandidates} onProfile={setSelectedProfile} T={T}/>}
+          {hubPage==="pipeline"&&<HubPipeline candidates={pipelineCandidates} T={T}/>}
+          {hubPage==="outreach"&&<HubOutreach records={outreachRecords} extCandidates={extensionCandidates} addToast={addToast} T={T}/>}
+          {hubPage==="sourcing"&&<HubSourcing onExtension={()=>setMode("extension")} T={T}/>}
+          {hubPage==="credits"&&<HubCredits credits={credits} T={T}/>}
+        </div>
+      </div>
+    </div>}
+
+    {/* Profile Modal */}
+    {selectedProfile&&<ProfileModal candidate={selectedProfile} onClose={()=>setSelectedProfile(null)} T={T}/>}
+
+    {/* Toasts */}
+    <div style={{position:"fixed",bottom:18,right:18,zIndex:9999,display:"flex",flexDirection:"column",gap:7,alignItems:"flex-end"}}>
+      {toasts.map(t=><Toast key={t.id} msg={t.msg} type={t.type} T={T} onClose={()=>rmToast(t.id)}/>)}
+    </div>
+  </div>;
+}
